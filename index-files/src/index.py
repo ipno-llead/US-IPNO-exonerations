@@ -3,9 +3,14 @@ from os.path import isfile, join
 import hashlib 
 import os
 import pandas as pd
+import argparse
 
 
-docs_path = "../../index-files/input/wrongful-convictions-docs"
+def get_args():
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--path")
+    parser.add_argument("--outdir")
+    return parser.parse_args()
 
 
 def sha1(fname):
@@ -16,13 +21,13 @@ def sha1(fname):
     return hash_sha1.hexdigest()
 
 
-def generate_df():
+def generate_df(args):
     filehashes = []
     filepaths = []
     filenames = []
     filesizes = []
 
-    for path, subdirs, files in os.walk(docs_path):
+    for path, subdirs, files in os.walk(args.path):
         for name in files:
             filepath = os.path.join(path, name)
             fhash = sha1(filepath)
@@ -53,6 +58,7 @@ def clean_df(df):
 
 
 if __name__ == "__main__":
-    df = generate_df()
+    args = get_args()
+    df = generate_df(args)
     df = clean_df(df)
-    df.to_csv("../../index-files/output/index.csv", index=False)
+    df.to_csv(args.outdir, index=False)
