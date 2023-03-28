@@ -57,8 +57,32 @@ def clean_df(df):
     return df 
 
 
+def check_duplicate_filehash(df):
+    df = df.drop_duplicates(subset=["filehash"])
+    for _ in df["filehash"]:
+        unique = df.filehash.is_unique
+        if unique is True:
+            continue
+        else:
+            raise ValueError("duplicate filehash found")
+    return df
+
+
+def check_duplicate_uid(df):
+    df = df.drop_duplicates(subset=["uid"])
+    for _ in df["uid"]:
+        unique = df.uid.is_unique
+        if unique is True:
+            continue
+        else:
+            raise ValueError("duplicate uid found")
+    return df
+
+
 if __name__ == "__main__":
     args = get_args()
     df = generate_df(args)
     df = clean_df(df)
-    df.to_csv(args.outdir, index=False)
+    df = check_duplicate_filehash(df)
+    df = check_duplicate_uid(df)
+    df.to_csv(args.outdir, index=False, sep="|")
