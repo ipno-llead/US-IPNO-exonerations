@@ -1,8 +1,8 @@
-index := ../../index-files/output/text.csv
+index := ../../index-files/output/test.csv
 
 .PHONY: all clean
 
-all: output/testimony-pdf.csv
+all: output/testimony-pdfs.csv
 
 output/testimony-pdf.csv: src/ocr.py $(index)
 	-mkdir output
