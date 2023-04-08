@@ -1,10 +1,10 @@
-index := ../../index-files/output/test.csv
+index := ../hueristic_filter/output/hueristic-df.csv
 
 .PHONY: all clean
 
-all: output/testimony-pdfs.csv
+all: output/hueristic-pdfs.csv
 
-output/testimony-pdfs.csv: src/ocr.py $(index)
+output/hueristic-pdfs.csv: src/ocr.py $(index)
 	-mkdir output
 	-mkdir -p output/txt
 	python $< \
