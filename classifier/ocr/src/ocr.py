@@ -30,28 +30,42 @@ def process_pdf(pdf_file):
     pdf_filehash = index.loc[index['filepath'] == pdf_file, 'filehash'].iloc[0]
     npages = pdf_length(pdf_file)
     logging.info(f"Processing {pdf_file} with {npages} pages")
-    return pd.DataFrame({'fileid': os.path.splitext(os.path.basename(pdf_file))[0], 
+    fileid = os.path.splitext(os.path.basename(pdf_file))[0]
+    txt_filepaths = []
+    img_filepaths = []
+    for pageno in range(1, npages+1):
+        txt_filepath, img_filepath = ocr_cached(pageno, pdf_file, pytesseract, DPI, args.txtdir)
+        txt_filepaths.append(txt_filepath)
+        img_filepaths.append(img_filepath)
+    return pd.DataFrame({'filepath': pdf_file,
+                         'fileid': fileid, 
+                         'filename': os.path.basename(pdf_file),
                          'filehash': pdf_filehash,
+                         'filesize': os.path.getsize(pdf_file),
+                         'uid': index.loc[index['filepath'] == pdf_file, 'uid'].iloc[0],
+                         'filetype': index.loc[index['filepath'] == pdf_file, 'filetype'].iloc[0],
+                         'case_id': index.loc[index['filepath'] == pdf_file, 'case_id'].iloc[0],
                          'pageno': range(1, npages+1),
-                         'text': list(map(partial(ocr_cached, filename=pdf_file, engine=pytesseract, DPI=DPI, txtdir=args.txtdir), 
-                                             range(1, npages+1)))})
+                         'text': [open(filepath, 'r').read() for filepath in txt_filepaths],
+                         'txt_filepath': txt_filepaths,
+                         'img_filepath': img_filepaths})
 
 def ocr_cached(pageno, filename, engine, DPI, txtdir):
-    txt_fn = os.path.join(txtdir, f'{os.path.splitext(os.path.basename(filename))[0]}_{pageno:04d}.txt')
-    img_fn = os.path.join("output/images", f'{os.path.splitext(os.path.basename(filename))[0]}_{pageno:04d}.jpg')
-    print(img_fn)
-    if os.path.exists(txt_fn):
-        with open(txt_fn, 'r') as f:
-            return f.read()
-    logging.info(f'OCR for: {txt_fn}')
+    txt_filepath = os.path.join(txtdir, f'{os.path.splitext(os.path.basename(filename))[0]}_{pageno:04d}.txt')
+    img_filepath = os.path.join("output/images", f'{os.path.splitext(os.path.basename(filename))[0]}_{pageno:04d}.jpg')
+    print(img_filepath)
+    if os.path.exists(txt_filepath):
+        with open(txt_filepath, 'r') as f:
+            return txt_filepath, img_filepath
+    logging.info(f'OCR for: {txt_filepath}')
     pages = convert_from_path(filename, dpi=DPI)
     img = pages[pageno-1]
     img = img.convert('RGB')
-    img.save(img_fn, 'JPEG')
+    img.save(img_filepath, 'JPEG')
     txt = engine.image_to_string(img)
-    with open(txt_fn, 'w') as f:
+    with open(txt_filepath, 'w') as f:
         f.write(txt)
-    return txt
+    return txt_filepath, img_filepath
 
 def change_fp(df):
     df.loc[:, "filepath"] = df.filepath.str.replace(r"^../(.+)", r"../../\1", regex=True)
