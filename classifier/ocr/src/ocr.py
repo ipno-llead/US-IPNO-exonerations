@@ -38,6 +38,8 @@ def process_pdf(pdf_file):
 
 def ocr_cached(pageno, filename, engine, DPI, txtdir):
     txt_fn = os.path.join(txtdir, f'{os.path.splitext(os.path.basename(filename))[0]}_{pageno:04d}.txt')
+    img_fn = os.path.join("output/images", f'{os.path.splitext(os.path.basename(filename))[0]}_{pageno:04d}.jpg')
+    print(img_fn)
     if os.path.exists(txt_fn):
         with open(txt_fn, 'r') as f:
             return f.read()
@@ -45,14 +47,14 @@ def ocr_cached(pageno, filename, engine, DPI, txtdir):
     pages = convert_from_path(filename, dpi=DPI)
     img = pages[pageno-1]
     img = img.convert('RGB')
-    img.save(os.path.join(txtdir, f'{os.path.splitext(os.path.basename(filename))[0]}_{pageno:04d}.jpg'), 'JPEG')
+    img.save(img_fn, 'JPEG')
     txt = engine.image_to_string(img)
     with open(txt_fn, 'w') as f:
         f.write(txt)
     return txt
 
 def change_fp(df):
-    df.loc[:, "filepath"] = df.filepath.str.replace(r"^(.+)", r"../../\1", regex=True)
+    df.loc[:, "filepath"] = df.filepath.str.replace(r"^../(.+)", r"../../\1", regex=True)
     return df 
 
 if __name__ == '__main__':

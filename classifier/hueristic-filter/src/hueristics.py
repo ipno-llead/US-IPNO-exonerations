@@ -34,8 +34,6 @@ def change_dir(df):
     return df 
 
 def extract_reports(index):
-    logger.info("Loading index file...")
-    df = pd.read_csv(index, on_bad_lines="skip", sep="|")
     logger.info("Extracting transcripts...")
     transcripts = df.loc[:].pipe(get_transcripts)
     logger.info("Extracting testimonies...")
@@ -44,6 +42,10 @@ def extract_reports(index):
     police_reports = df.loc[:].pipe(get_police_reports)
     return transcripts, testimonies, police_reports
 
+def change_dir(df):
+    df.loc[:, "filepath"] = df.filepath.str.replace(r"^(.+)", r"../\1", regex=True)
+    return df 
+
 def concat_reports(*args):
     logger.info("Concatenating documents...")
     df = pd.concat([transcripts, testimonies, police_reports])
@@ -51,6 +53,8 @@ def concat_reports(*args):
 
 if __name__ == "__main__":
     index = args.index
+    df = pd.read_csv(index)
+    df = df.pipe(change_dir)
     output_path = args.output
     transcripts, testimonies, police_reports = extract_reports(index)
     df = concat_reports(transcripts, testimonies, police_reports)

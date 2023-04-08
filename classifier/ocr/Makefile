@@ -1,4 +1,4 @@
-index := ../hueristic_filter/output/hueristic-df.csv
+index := ../hueristic-filter/output/hueristic-df.csv
 
 .PHONY: all clean
 

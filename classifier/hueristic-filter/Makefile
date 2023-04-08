@@ -1,4 +1,4 @@
-index := ../../index-files/output/index.csv
+index := ../../index-files/output/test.csv
 
 .PHONY: all clean
 
