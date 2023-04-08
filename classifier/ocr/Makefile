@@ -4,7 +4,7 @@ index := ../../index-files/output/test.csv
 
 all: output/testimony-pdfs.csv
 
-output/testimony-pdf.csv: src/ocr.py $(index)
+output/testimony-pdfs.csv: src/ocr.py $(index)
 	-mkdir output
 	-mkdir -p output/txt
 	python $< \

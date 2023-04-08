@@ -51,12 +51,17 @@ def ocr_cached(pageno, filename, engine, DPI, txtdir):
         f.write(txt)
     return txt
 
+def change_fp(df):
+    df.loc[:, "filepath"] = df.filepath.str.replace(r"^(.+)", r"../../\1", regex=True)
+    return df 
+
 if __name__ == '__main__':
     input_path = args.index
     output_path = args.output
     DPI = args.dpi
 
     index = pd.read_csv(input_path)
+    index = index.pipe(change_fp)
     logging.info(f"Total number of files in index: {len(index)}")
 
     index = index[index['filetype']=='pdf']
