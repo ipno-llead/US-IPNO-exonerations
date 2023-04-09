@@ -14,7 +14,7 @@ from PIL import Image
 
 parser = argparse.ArgumentParser()
 parser.add_argument("--index")
-parser.add_argument("--txtdir", default="output/txt300")
+parser.add_argument("--txtdir", default="output/txt")
 parser.add_argument("--dpi", type=int, default=300)
 parser.add_argument("--output")
 args = parser.parse_args()
@@ -26,11 +26,15 @@ def pdf_length(filepath):
         pdf = PdfFileReader(f)
         return pdf.getNumPages()
 
+# add doc_type col to the process_pdf func
+
 def process_pdf(pdf_file):
     pdf_filehash = index.loc[index['filepath'] == pdf_file, 'filehash'].iloc[0]
     npages = pdf_length(pdf_file)
     logging.info(f"Processing {pdf_file} with {npages} pages")
     fileid = os.path.splitext(os.path.basename(pdf_file))[0]
+    label = index.loc[index['filepath'] == pdf_file, 'label'].iloc[0]
+    doc_type = index.loc[index['filepath'] == pdf_file, 'doc_type'].iloc[0]
     txt_filepaths = []
     img_filepaths = []
     for pageno in range(1, npages+1):
@@ -45,6 +49,8 @@ def process_pdf(pdf_file):
                          'uid': index.loc[index['filepath'] == pdf_file, 'uid'].iloc[0],
                          'filetype': index.loc[index['filepath'] == pdf_file, 'filetype'].iloc[0],
                          'case_id': index.loc[index['filepath'] == pdf_file, 'case_id'].iloc[0],
+                         'label': label,
+                         'doc_type': doc_type,
                          'pageno': range(1, npages+1),
                          'text': [open(filepath, 'r').read() for filepath in txt_filepaths],
                          'txt_filepath': txt_filepaths,
@@ -68,7 +74,7 @@ def ocr_cached(pageno, filename, engine, DPI, txtdir):
     return txt_filepath, img_filepath
 
 def change_fp(df):
-    df.loc[:, "filepath"] = df.filepath.str.replace(r"^../(.+)", r"../../\1", regex=True)
+    df.loc[:, "filepath"] = df.filepath.str.replace(r"^../(.+)", r"../../index-files/\1", regex=True)
     return df 
 
 if __name__ == '__main__':
@@ -93,7 +99,7 @@ if __name__ == '__main__':
 
     df = pd.concat(dfs, sort=False)
     
-    df.to_csv(output_path, index=False)
+    df.to_csv(output_path)
     logging.info(f"CSV output saved to {output_path}")
 
     logging.info('done')

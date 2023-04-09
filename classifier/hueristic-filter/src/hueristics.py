@@ -1,3 +1,8 @@
+# This script has been altered for testing
+# the extract_reports func should include data from all func
+# the non_testimonates func should be renamed to non_relevant 
+# and it should ref strings in each relevant func
+
 import pandas as pd
 import logging
 import argparse
@@ -18,10 +23,16 @@ def get_transcripts(df):
 def get_testimonies(df):
     df = df[df.filename.str.lower().str.contains(r"testimony") & df.filetype.str.contains("pdf")]
     df["doc_type"] = "testimony"
-    return df 
+    df["label"] = "1"
+    return df
+
+def get_non_testimonies(df):
+    df = df[~df.filename.str.lower().str.contains(r"testimony") & df.filetype.str.contains("pdf")]
+    df["doc_type"] = "testimony"
+    df["label"] = "0"
+    return df
 
 def get_police_reports(df):
-    # how to deal with duplicates in Robert Jones' case? 
     df = df[df.filename.str.lower().str.contains(r"(?:arrest report|"
                                                  r"nopd report|"
                                                  r"police report|"
@@ -33,14 +44,12 @@ def change_dir(df):
     df.loc[:, "filepath"] = df.filepath.str.replace(r"^(.+)", r"../../\1", regex=True)
     return df 
 
-def extract_reports(index):
-    logger.info("Extracting transcripts...")
-    transcripts = df.loc[:].pipe(get_transcripts)
+def extract_documents(index):
     logger.info("Extracting testimonies...")
     testimonies = df.loc[:].pipe(get_testimonies)
-    logger.info("Extracting police reports...")
-    police_reports = df.loc[:].pipe(get_police_reports)
-    return transcripts, testimonies, police_reports
+    logger.info("Extracting transcripts...")
+    non_testimonies = df.loc[:].pipe(get_non_testimonies)
+    return testimonies, non_testimonies
 
 def change_dir(df):
     df.loc[:, "filepath"] = df.filepath.str.replace(r"^(.+)", r"../\1", regex=True)
@@ -48,16 +57,16 @@ def change_dir(df):
 
 def concat_reports(*args):
     logger.info("Concatenating documents...")
-    df = pd.concat([transcripts, testimonies, police_reports])
-    return df 
+    df = pd.concat([testimonies, non_testimonies])
+    return df
 
 if __name__ == "__main__":
     index = args.index
-    df = pd.read_csv(index)
+    df = pd.read_csv(index, sep="|")
     df = df.pipe(change_dir)
     output_path = args.output
-    transcripts, testimonies, police_reports = extract_reports(index)
-    df = concat_reports(transcripts, testimonies, police_reports)
+    testimonies, non_testimonies = extract_documents(index)
+    df = concat_reports(testimonies, non_testimonies)
     logger.info("Writing output file...")
     df.to_csv(output_path, index=False)
     logger.info("Done.")
