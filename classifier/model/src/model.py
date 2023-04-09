@@ -8,8 +8,10 @@ import argparse
 import logging
 import os
 from sklearn.svm import SVC
+from sklearn.ensemble import RandomForestClassifier
+from sklearn.linear_model import LogisticRegression
 
-logging.basicConfig(level=logging.INFO)
+logging.basicConfig(format='%(asctime)s - %(levelname)s - %(message)s', level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 parser = argparse.ArgumentParser()
@@ -51,17 +53,43 @@ X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_
 X_train = np.array(X_train) / 255.0
 X_test = np.array(X_test) / 255.0
 
-model = SVC(kernel='rbf', gamma='scale', C=1.0)
+# SVC
+svc_model = SVC(kernel='rbf', gamma='scale', C=1.0)
+logger.info("Training svc model...")
+svc_model.fit(X_train.reshape(X_train.shape[0], -1), y_train.argmax(axis=1))
+svc_y_pred = svc_model.predict(X_test.reshape(X_test.shape[0], -1))
+svc_test_acc = accuracy_score(y_test.argmax(axis=1), svc_y_pred)
+logger.info("svc test accuracy: {:.4f}".format(svc_test_acc))
 
-logger.info("Training model...")
-model.fit(X_train.reshape(X_train.shape[0], -1), y_train.argmax(axis=1))
+# RForest
+rf_model = RandomForestClassifier(n_estimators=100, random_state=42)
+logger.info("Training rforest model...")
+rf_model.fit(X_train.reshape(X_train.shape[0], -1), y_train.argmax(axis=1))
+rf_y_pred = rf_model.predict(X_test.reshape(X_test.shape[0], -1))
+rf_test_acc = accuracy_score(y_test.argmax(axis=1), rf_y_pred)
+logger.info("rforest test accuracy: {:.4f}".format(rf_test_acc))
 
-logger.info("Evaluating model on test data...")
-y_pred = model.predict(X_test.reshape(X_test.shape[0], -1))
-test_acc = accuracy_score(y_test.argmax(axis=1), y_pred)
-logger.info("Test accuracy: {:.4f}".format(test_acc))
+# LRegression
+lr_model = LogisticRegression(random_state=42)
+logger.info("Training lregression model..")
+lr_model.fit(X_train.reshape(X_train.shape[0], -1), y_train.argmax(axis=1))
+lr_y_pred = lr_model.predict(X_test.reshape(X_test.shape[0], -1))
+lr_test_acc = accuracy_score(y_test.argmax(axis=1), lr_y_pred)
+logger.info("lregression test accuracy: {:.4f}".format(lr_test_acc))
 
-logger.info("Saving model to {}...".format(args.output))
-np.save(args.output, model)
+models = {'svc': {'model': svc_model, 'accuracy': svc_test_acc},
+          'rforests': {'model': rf_model, 'accuracy': rf_test_acc},
+          'lregression': {'model': lr_model, 'accuracy': lr_test_acc}}
+
+best_model_name = max(models, key=lambda x: models[x]['accuracy'])
+best_model = models[best_model_name]['model']
+best_accuracy = models[best_model_name]['accuracy']
+
+logger.info("Best model: {}, Accuracy: {:.4f}".format(best_model_name, best_accuracy))
+
+logger.info("Saving best model to {}...".format(args.output))
+np.save(args.output, best_model)
 
 logger.info("Done.")
+
+
