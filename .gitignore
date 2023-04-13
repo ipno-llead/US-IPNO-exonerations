@@ -3,3 +3,4 @@ output/
 frozen/
 note/
 .snap
+__pycache__/
