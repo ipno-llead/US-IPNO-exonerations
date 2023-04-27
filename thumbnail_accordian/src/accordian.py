@@ -37,10 +37,10 @@ def pdf2png(pdf_path,dpi,png_path):
 
 
 def convert_pdf(row):
-    logger.info("start convert pdf")
+
     row_list = row.to_list()
-    first_entry = row_list[1]
-    logger.info("found filepath column")
+    first_entry = row_list[0]
+
     full_path = first_entry[:2] + "/index-files" + first_entry[2:]
     uid = str(row_list[4])
     dir1 = "/" + uid[:2]

@@ -1,4 +1,4 @@
-input := input/test.csv
+input := ../classifier/hueristic-filter/output/hueristic-df.csv
 
 .PHONY: all clean
 
