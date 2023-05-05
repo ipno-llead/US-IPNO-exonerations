@@ -2,14 +2,20 @@ import pandas as pd
 import numpy as np
 from sklearn.preprocessing import LabelEncoder, OneHotEncoder
 from sklearn.model_selection import train_test_split
+from sklearn.compose import ColumnTransformer
+from sklearn.pipeline import Pipeline
 from sklearn.metrics import accuracy_score
+from tensorflow.keras.callbacks import EarlyStopping
+from sklearn.ensemble import RandomForestClassifier
+from sklearn.svm import SVC
+from sklearn.linear_model import LogisticRegression
 from PIL import Image
 import argparse
 import logging
 import os
-from sklearn.svm import SVC
-from sklearn.ensemble import RandomForestClassifier
-from sklearn.linear_model import LogisticRegression
+import tensorflow as tf
+from tensorflow.keras.applications import VGG16
+from tensorflow.keras.applications.resnet50 import ResNet50, preprocess_input
 
 logging.basicConfig(format='%(asctime)s - %(levelname)s - %(message)s', level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -19,77 +25,135 @@ parser.add_argument("--input")
 parser.add_argument("--output")
 args = parser.parse_args()
 
-df = pd.read_csv(args.input)
 
 def change_dir(df):
-    df.loc[:, "label"] = df.label.astype(str)
-    df.loc[:, "txt_filepath"] = df.txt_filepath.str.replace(r"^(.+)", r"../ocr/\1", regex=True)
-    df.loc[:, "img_filepath"] = df.img_filepath.str.replace(r"^(.+)", r"../ocr/\1", regex=True)
+    df.loc[:, "label"] = df.label.astype(str).str.replace(r"1\.0", "", regex=True)
+    df.loc[:, "img_filepath"] = df.png.str.replace(r"^(.+)", r"../../thumbnail_accordian/\1", regex=True)
     return df 
 
-df = change_dir(df)
+def generate_reports(df):
+    dfa = df[(df.doc_type == "report")]
+    
+    dfb = df[~(df.doc_type == "report")]
+    dfb["label"] = "0"
+    dfb = dfb.sample(n=6500, random_state=42)
 
-num_classes = 10
+    df = pd.concat([dfa, dfb], axis=0)
+    df.loc[:, "label"] = df.label.astype(int)
+    return df 
 
-X = []
-y = []
+def generate_transcripts(df):
+    dfa = df[(df.doc_type == "transcript")]
+    dfa["label"] = "1"
+    print(dfa.shape)
+    dfa = dfa.sample(n=2000, random_state=42)
+    print(dfa.shape)
+    
+    dfb = df[~(df.doc_type == "transcript")]
+    dfb["label"] = "0"
+    dfb = dfb[(dfb.doc_type == "report")]
+    print(dfb.shape)
 
-for index, row in df.iterrows():
-    if not os.path.exists(row['img_filepath']):
-        logger.warning("Skipping file: {} does not exist".format(row['img_filepath']))
-        continue
-    img = Image.open(row['img_filepath']).resize((224,224))
-    X.append(np.array(img))
-    y.append(row['label'])
+    df = pd.concat([dfa, dfb], axis=0)
+    df.loc[:, "label"] = df.label.astype(int)
+    return df 
 
-le = LabelEncoder()
-y = le.fit_transform(y)
-y = y.reshape(-1,1)
-ohe = OneHotEncoder()
-y = ohe.fit_transform(y).toarray()
+def generate_testimonies(df):    
+    dfa = df[(df.doc_type == "testimony")]
+    #~6000 pages
+    dfa["label"] = "1"
+    
+    dfb = df[~(df.doc_type == "testimony")]
+    dfb["label"] = "0"
+    dfb = dfb.sample(n=6500, random_state=42)
 
-X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
+    df = pd.concat([dfa, dfb], axis=0)
+    df.loc[:, "label"] = df.label.astype(int)
+    return df 
 
-X_train = np.array(X_train) / 255.0
-X_test = np.array(X_test) / 255.0
+def model(df):
+    num_classes = 10
 
-# SVC
-svc_model = SVC(kernel='rbf', gamma='scale', C=1.0)
-logger.info("Training svc model...")
-svc_model.fit(X_train.reshape(X_train.shape[0], -1), y_train.argmax(axis=1))
-svc_y_pred = svc_model.predict(X_test.reshape(X_test.shape[0], -1))
-svc_test_acc = accuracy_score(y_test.argmax(axis=1), svc_y_pred)
-logger.info("svc test accuracy: {:.4f}".format(svc_test_acc))
+    X = []
+    y = []
 
-# RForest
-rf_model = RandomForestClassifier(n_estimators=100, random_state=42)
-logger.info("Training rforest model...")
-rf_model.fit(X_train.reshape(X_train.shape[0], -1), y_train.argmax(axis=1))
-rf_y_pred = rf_model.predict(X_test.reshape(X_test.shape[0], -1))
-rf_test_acc = accuracy_score(y_test.argmax(axis=1), rf_y_pred)
-logger.info("rforest test accuracy: {:.4f}".format(rf_test_acc))
+    for index, row in df.iterrows():
+        if not os.path.exists(row['img_filepath']):
+            logger.warning("Skipping file: {} does not exist".format(row['img_filepath']))
+            continue
+        img = Image.open(row['img_filepath']).resize((224,224))
+        X.append(np.array(img))
+        y.append(row['label'])
 
-# LRegression
-lr_model = LogisticRegression(random_state=42)
-logger.info("Training lregression model..")
-lr_model.fit(X_train.reshape(X_train.shape[0], -1), y_train.argmax(axis=1))
-lr_y_pred = lr_model.predict(X_test.reshape(X_test.shape[0], -1))
-lr_test_acc = accuracy_score(y_test.argmax(axis=1), lr_y_pred)
-logger.info("lregression test accuracy: {:.4f}".format(lr_test_acc))
+    le = LabelEncoder()
+    y = le.fit_transform(y)
+    y = y.reshape(-1,1)
+    ohe = OneHotEncoder()
+    y = ohe.fit_transform(y).toarray()
 
-models = {'svc': {'model': svc_model, 'accuracy': svc_test_acc},
-          'rforests': {'model': rf_model, 'accuracy': rf_test_acc},
-          'lregression': {'model': lr_model, 'accuracy': lr_test_acc}}
+    X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
+    X_train = np.array(X_train) / 255.0
+    X_test = np.array(X_test) / 255.0
 
-best_model_name = max(models, key=lambda x: models[x]['accuracy'])
-best_model = models[best_model_name]['model']
-best_accuracy = models[best_model_name]['accuracy']
+    pre_trained_model = ResNet50(weights="imagenet", include_top=False, input_shape=(224,224,3))
+    pre_trained_model.trainable = False
 
-logger.info("Best model: {}, Accuracy: {:.4f}".format(best_model_name, best_accuracy))
+    # Add classification head
+    inputs = tf.keras.Input(shape=(224, 224, 3))
+    x = pre_trained_model(inputs, training=False)
+    x = tf.keras.layers.GlobalAveragePooling2D()(x)
+    x = tf.keras.layers.Dense(128, activation="relu")(x)
+    outputs = tf.keras.layers.Dense(2, activation="softmax")(x)
+    model = tf.keras.Model(inputs, outputs)
 
-logger.info("Saving best model to {}...".format(args.output))
-np.save(args.output, best_model)
+    # Compile model
+    model.compile(optimizer=tf.keras.optimizers.Adam(lr=0.001), loss="categorical_crossentropy", metrics=["accuracy"])
 
-logger.info("Done.")
+    # Train model
+    es_callback = EarlyStopping(monitor='val_loss', patience=3)
+    history = model.fit(X_train, y_train, validation_data=(X_test, y_test), batch_size=32,
+                    epochs=10, callbacks=[es_callback])
+    # Evaluate model
+    test_loss, test_acc = model.evaluate(X_test, y_test)
+    print('Test accuracy:', test_acc)
+    
+    base_model = ResNet50(weights='imagenet', include_top=False, input_shape=(224, 224, 3))
+    X_train_preprocessed = preprocess_input(X_train)
+    X_test_preprocessed = preprocess_input(X_test)
+    train_features = base_model.predict(X_train_preprocessed)
+    test_features = base_model.predict(X_test_preprocessed)
+
+    # Flatten features
+    train_features_flat = train_features.reshape(train_features.shape[0], -1)
+    test_features_flat = test_features.reshape(test_features.shape[0], -1)
+    
+    X_train_flat = X_train.reshape(X_train.shape[0], -1)
+    X_test_flat = X_test.reshape(X_test.shape[0], -1)
+
+    # Combine extracted features with original features
+    X_train_combined = np.hstack([X_train_flat, train_features_flat])
+    X_test_combined = np.hstack([X_test_flat, test_features_flat])
+
+    # Train random forest classifier with combined features
+    rf_model_combined = RandomForestClassifier(n_estimators=100, random_state=42)
+    rf_model_combined.fit(X_train_combined, y_train)
+    rf_y_pred_combined = rf_model_combined.predict(X_test_combined)
+    rf_test_acc_combined = accuracy_score(y_test, rf_y_pred_combined)
+    print('Random Forest with combined features test accuracy:', rf_test_acc_combined) 
+
+    trained_model = rf_model_combined
+    trained_model_accuracy = rf_test_acc_combined
+    return trained_model, trained_model_accuracy
 
 
+if __name__ == "__main__":
+    df = pd.read_csv(args.input)
+    df = change_dir(df)
+
+    transcripts = generate_transcripts(df)
+    trained_model, trained_model_accuracy = model(transcripts)
+    logger.info("Random Forest Model's Accuracy: {:.4f}".format(trained_model_accuracy))
+
+    logger.info("Saving best model to {}...".format(args.output))
+    np.save(args.output, trained_model)
+    logger.info("Done.")
