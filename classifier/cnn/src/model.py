@@ -98,7 +98,7 @@ def setup_model(dls):
     return learn
 
 if __name__ == '__main__':
-    tuning_n = 10
+    tuning_n = 20
 
     df_lab = pd.read_csv(args.labeled)
     df_lab = change_dir(df_lab)
