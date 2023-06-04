@@ -1,11 +1,11 @@
-labeled := ../../thumbnail_accordian/output/accordian.csv
+labeled := ../../thumbnail_accordian/output/hueristic-index.csv
 nonlabeled := ../../thumbnail_accordian/output/index.csv
 
 .PHONY: all clean
 
-all: output/rf_reports_model
+all: output/report_model
 
-output/rf_reports_model: src/model.py $(input)
+output/report_model: src/model.py $(input)
 	mkdir -p output
 	python $< \
 		--labeled $(labeled) \

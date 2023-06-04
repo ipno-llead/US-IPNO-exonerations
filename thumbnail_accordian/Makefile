@@ -1,10 +1,10 @@
-input := ../classifier/hueristic-filter/output/hueristic-df.csv
+input := ../index-files/output/index.csv
 
 .PHONY: all clean
 
-all: output/accordian.csv
+all: output/index.csv
 
-output/accordian.csv: src/accordian.py $(input)
+output/index.csv: src/accordian.py $(input)
 	-mkdir output
 	python $< \
 		--input=$(input) \

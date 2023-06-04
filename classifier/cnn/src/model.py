@@ -28,6 +28,7 @@ def change_dir(df):
 
 
 def assign_label_col(df):
+    print(df)
     df.loc[:, "label"] = 0
     df.loc[:, "doc_type"] = "unknown"
     df.loc[:, "label"] = df.label.astype(int)
@@ -46,7 +47,7 @@ def concat(dfa, dfb):
     logger.info(f"Number of labeled reports: {len(dfa)}")
                          
     dfb = dfb[~(dfb.filehash.isin(report_uids))]
-    dfb = dfb.sample(n=1500, random_state=42)
+    dfb = dfb.sample(n=2500)
     logger.info(f"Number of non-labeled samples: {len(dfb)}")
 
     df = pd.concat([dfa, dfb], axis=0)
@@ -76,12 +77,12 @@ def get_dataloaders(data):
             path="",
             fn_col='img_filepath',
             label_col='label',
-            item_tfms=Resize((289, 221)),
-            batch_tfms=[*aug_transforms(size=(221, 221), pad_mode='zeros'), Flip(p=0.5)],
-            valid_pct=.4,
-            batch_size=16,
-            train_tfms=train_aug,
-            valid_tfms=valid_aug
+#             item_tfms=Resize((224,224)),
+#             batch_tfms=[*aug_transforms(size=(224, 224), pad_mode='zeros'), Flip(p=0.5)],
+            valid_pct=.3,
+            batch_size=32,
+            train_tfms=[],
+            valid_tfms=[]
             )
     return dls
 
@@ -98,7 +99,7 @@ def setup_model(dls):
     return learn
 
 if __name__ == '__main__':
-    tuning_n = 20
+    tuning_n = 10
 
     df_lab = pd.read_csv(args.labeled)
     df_lab = change_dir(df_lab)
@@ -123,5 +124,5 @@ if __name__ == '__main__':
     learn.export(args.output)
     
     # Output accuracy score based on validation data
-    acc = learn.validate()[1]
+    acc = learn.validate()[2]
     logger.info(f"Accuracy: {acc}")
