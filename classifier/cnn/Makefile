@@ -3,9 +3,9 @@ nonlabeled := ../../thumbnail_accordian/output/index.csv
 
 .PHONY: all clean
 
-all: output/report_model
+all: output/transcript_model
 
-output/report_model: src/model.py $(input)
+output/transcript_model: src/model.py $(input)
 	mkdir -p output
 	python $< \
 		--labeled $(labeled) \
