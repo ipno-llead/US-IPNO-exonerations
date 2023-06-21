@@ -1,4 +1,3 @@
-import argparse
 import re
 import logging
 import os
@@ -11,6 +10,7 @@ import pytesseract
 from tqdm import tqdm
 from pdf2image import convert_from_path
 from PIL import Image
+import argparse
 
 parser = argparse.ArgumentParser()
 parser.add_argument("--index")
@@ -21,30 +21,58 @@ args = parser.parse_args()
 
 logging.basicConfig(format='%(asctime)s - %(levelname)s - %(message)s', level=logging.INFO)
 
-def pdf_length(filepath):
-    with open(f'{filepath}', 'rb') as f:
-        pdf = PdfFileReader(f)
-        return pdf.getNumPages()
 
-# add doc_type col to the process_pdf func
+def pdf_length(filepath):
+    try:
+        with open(f'{filepath}', 'rb') as f:
+            pdf = PdfFileReader(f)
+            return pdf.getNumPages()
+    except Exception as e:
+        logging.error(f"Error processing PDF: {filepath} - {str(e)}")
+        return None
+
+
+def ocr_page(pageno, filename, engine, DPI, txtdir):
+    txt_dir = os.path.join(args.txtdir, os.path.relpath(os.path.dirname(filename)), os.path.splitext(os.path.basename(filename))[0])
+    os.makedirs(txt_dir, exist_ok=True)
+    txt_filepath = os.path.join(txt_dir, f'{os.path.splitext(os.path.basename(filename))[0]}_{pageno:04d}.txt')
+
+    try:
+        if os.path.exists(txt_filepath):  # Check if the text file already exists
+            logging.info(f"Skipped page {pageno} of file: {filename} - Text file already exists in the path")
+            return txt_filepath
+
+        pages = convert_from_path(filename, dpi=DPI)
+        img = pages[pageno-1]
+        img = img.convert('RGB')
+
+        with open(txt_filepath, 'w') as f:
+            f.write(pytesseract.image_to_string(img))
+
+        logging.info(f"Processed page {pageno} of file: {filename} - Text file saved at: {txt_filepath}")
+        return txt_filepath
+    except Exception as e:
+        logging.error(f"Error during OCR for page {pageno} of file: {filename}\n{str(e)}")
+        return None
+    
 
 def process_pdf(pdf_file):
-    pdf_filehash = index.loc[index['filepath'] == pdf_file, 'filehash'].iloc[0]
     npages = pdf_length(pdf_file)
+    if npages is None:
+        logging.error(f"Skipped processing problematic PDF: {pdf_file}")
+        return None
     logging.info(f"Processing {pdf_file} with {npages} pages")
     fileid = os.path.splitext(os.path.basename(pdf_file))[0]
     label = index.loc[index['filepath'] == pdf_file, 'label'].iloc[0]
     doc_type = index.loc[index['filepath'] == pdf_file, 'doc_type'].iloc[0]
     txt_filepaths = []
-    img_filepaths = []
     for pageno in range(1, npages+1):
-        txt_filepath, img_filepath = ocr_cached(pageno, pdf_file, pytesseract, DPI, args.txtdir)
-        txt_filepaths.append(txt_filepath)
-        img_filepaths.append(img_filepath)
+        txt_filepath = ocr_page(pageno, pdf_file, pytesseract, args.dpi, args.txtdir)
+        if txt_filepath:
+            txt_filepaths.append(txt_filepath)
     return pd.DataFrame({'filepath': pdf_file,
                          'fileid': fileid, 
                          'filename': os.path.basename(pdf_file),
-                         'filehash': pdf_filehash,
                          'filesize': os.path.getsize(pdf_file),
                          'uid': index.loc[index['filepath'] == pdf_file, 'uid'].iloc[0],
                          'filetype': index.loc[index['filepath'] == pdf_file, 'filetype'].iloc[0],
@@ -52,54 +80,42 @@ def process_pdf(pdf_file):
                          'label': label,
                          'doc_type': doc_type,
                          'pageno': range(1, npages+1),
-                         'text': [open(filepath, 'r').read() for filepath in txt_filepaths],
-                         'txt_filepath': txt_filepaths,
-                         'img_filepath': img_filepaths})
+                         'txt_filepath': txt_filepaths})
 
-def ocr_cached(pageno, filename, engine, DPI, txtdir):
-    txt_filepath = os.path.join(txtdir, f'{os.path.splitext(os.path.basename(filename))[0]}_{pageno:04d}.txt')
-    img_filepath = os.path.join("output/images", f'{os.path.splitext(os.path.basename(filename))[0]}_{pageno:04d}.jpg')
-    print(img_filepath)
-    if os.path.exists(txt_filepath):
-        with open(txt_filepath, 'r') as f:
-            return txt_filepath, img_filepath
-    logging.info(f'OCR for: {txt_filepath}')
-    pages = convert_from_path(filename, dpi=DPI)
-    img = pages[pageno-1]
-    img = img.convert('RGB')
-    img.save(img_filepath, 'JPEG')
-    txt = engine.image_to_string(img)
-    with open(txt_filepath, 'w') as f:
-        f.write(txt)
-    return txt_filepath, img_filepath
 
 def change_fp(df):
-    df.loc[:, "filepath"] = df.filepath.str.replace(r"^../(.+)", r"../../index-files/\1", regex=True)
+    df.loc[:, "filepath"] = df.filepath.str.replace(r"^../(.+)", r"../index-files/\1", regex=True)
     return df 
 
+
 if __name__ == '__main__':
-    input_path = args.index
-    output_path = args.output
-    DPI = args.dpi
+    try:
+        input_path = args.index
+        output_path = args.output
+        DPI = args.dpi
 
-    index = pd.read_csv(input_path)
-    index = index.pipe(change_fp)
-    logging.info(f"Total number of files in index: {len(index)}")
+        index = pd.read_csv(input_path)
+        index = index.pipe(change_fp)
+        logging.info(f"Total number of files in index: {len(index)}")
 
-    index = index[index['filetype']=='pdf']
-    logging.info(f"Number of PDF files in index: {len(index)}")
+        index = index[index['filetype']=='pdf']
+        index = index[index['doc_type']=='transcript']
+        logging.info(f"Number of PDF files in index: {len(index)}")
 
-    pdf_files = index['filepath'].unique()
-    logging.info(f"Number of unique PDF files in index: {len(pdf_files)}")
+        pdf_files = index['filepath'].unique()
+        logging.info(f"Number of unique PDF files in index: {len(pdf_files)}")
 
-    dfs = []
-    with Pool() as p:
-        for df in tqdm(p.imap(process_pdf, pdf_files), total=len(pdf_files)):
-            dfs.append(df)
+        dfs = []
+        with Pool(processes=5) as p:
+            for df in tqdm(p.imap(process_pdf, pdf_files), total=len(pdf_files)):
+                if df is not None:
+                    dfs.append(df)
 
-    df = pd.concat(dfs, sort=False)
-    
-    df.to_csv(output_path)
-    logging.info(f"CSV output saved to {output_path}")
+        df = pd.concat(dfs, sort=False)
 
-    logging.info('done')
+        df.to_csv(output_path, index=False)
+        logging.info(f"CSV output saved to {output_path}")
+
+        logging.info('done')
+    except Exception as e:
+        logging.error(f"An error occurred during the main execution:\n{str(e)}")
