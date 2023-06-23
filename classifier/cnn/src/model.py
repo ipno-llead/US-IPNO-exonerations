@@ -8,6 +8,7 @@ from fastai.vision.models import resnet34
 from fastai.vision.learner import *
 from fastai.vision.learner import cnn_learner
 from fastai.vision.augment import *
+from fastai.metrics import Precision, Recall, F1Score
 from PIL import Image
 
 Image.MAX_IMAGE_PIXELS = None
@@ -38,7 +39,7 @@ def assign_label_col(df):
 
 
 def generate_reports(df):
-    df = df[(df.doc_type == "transcript")]
+    df = df[(df.doc_type == "report")]
     df.loc[:, "label"] = 1
     df.loc[:, "label"] = df.label.astype(int)
     return df
@@ -49,7 +50,7 @@ def concat(dfa, dfb):
     logger.info(f"Number of labeled reports: {len(dfa)}")
 
     dfb = dfb[~(dfb.filehash.isin(report_uids))]
-    dfb = dfb.sample(n=28000)  # Sample a smaller number of non-labeled samples
+    dfb = dfb.sample(n=1500)  # Sample a smaller number of non-labeled samples
     logger.info(f"Number of non-labeled samples: {len(dfb)}")
 
     df = pd.concat([dfa, dfb], axis=0)
@@ -91,7 +92,7 @@ def setup_model(dls):
     learn = cnn_learner(
         dls,
         resnet34,
-        metrics=[error_rate, accuracy],
+        metrics=[error_rate, accuracy, Precision(), Recall(), F1Score()],
         path=".",
         model_dir=".",
         pretrained=True,
@@ -102,8 +103,19 @@ def setup_model(dls):
     return learn
 
 
+def evaluate_model(learn):
+    values = learn.validate()
+    loss = values[0]
+    metrics = values[1:]
+    metric_names = [m.name for m in learn.metrics]
+    logger.info(f"Validation loss: {loss}")
+    for metric_name, metric_value in zip(metric_names, metrics):
+        logger.info(f"{metric_name.capitalize()}: {metric_value}")
+    return loss, metrics
+
+
 def train_model(learn):
-    learn.fine_tune(10)
+    learn.fine_tune(20)
     return learn
 
 
@@ -129,6 +141,9 @@ if __name__ == "__main__":
 
     # Train the model
     learn = train_model(learn)
+
+    # Evaluate the model
+    loss, metrics = evaluate_model(learn)
 
     # Save the trained model
     learn.export(args.output)

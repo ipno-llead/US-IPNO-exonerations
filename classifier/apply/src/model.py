@@ -1,16 +1,8 @@
 import pandas as pd
 import torch
-from torchvision.transforms.functional import resize
 from fastai.vision.all import *
-from fastai.vision.learner import load_learner
 import argparse
 import logging
-import os
-from PIL import Image
-from PIL import UnidentifiedImageError
-
-Image.MAX_IMAGE_PIXELS = None
-
 
 logging.basicConfig(format='%(asctime)s - %(levelname)s - %(message)s', level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -21,51 +13,44 @@ parser.add_argument("--index")
 parser.add_argument("--output")
 args = parser.parse_args()
 
-
 def change_dir(df):
     df.loc[:, "img_filepath"] = df.png.str.replace(r"^(.+)", r"../../thumbnail_accordian/\1", regex=True)
     df.loc[:, "img_filepath"] = df.img_filepath.fillna("").str.replace(r"\.\/nan", "", regex=True)
     df = df[~(df.img_filepath == "")]
     return df
 
-from PIL import UnidentifiedImageError
+def apply_model(df, model_path):
+    # Load the trained model
+    learn = load_learner(model_path, cpu=False)
 
-def apply_trained_model(df, model_path, device):
-    model = load_learner(model_path, cpu=False)
-    dls = ImageDataLoaders.from_df(df, path="", fn_col='img_filepath', bs=64, item_tfms=Resize((224, 224)))
-    dl = dls.test_dl(df)
-    dl = dl.to(device)  # Move the data to the correct device
-    preds, _ = model.get_preds(dl=dl)
-
-    for i, image_path in enumerate(df["img_filepath"]):
+    # Predict the class for each image in the dataframe
+    for idx, row in df.iterrows():
         try:
-            score = preds[i][1].item()
-            df.loc[df["img_filepath"] == image_path, "score"] = score
-        except UnidentifiedImageError as e:
-            logger.warning(f"Unidentified image error: {e}")
-            df.loc[df["img_filepath"] == image_path, "score"] = None
+            df.loc[idx, 'score'] = learn.predict(row['img_filepath'])[2][1].item()
         except Exception as e:
-            logger.warning(f"Error processing image {image_path}: {e}")
-            df.loc[df["img_filepath"] == image_path, "score"] = None
+            df.loc[idx, 'score'] = 'NA'
+            logger.warning(f"Error processing image {row['img_filepath']}: {e}")
 
     return df
 
-
-if __name__ == '__main__':
+if __name__ == "__main__":
+    # Load the model
     logger.info("Loading the model...")
     model_path = args.model
-    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
-    logger.info("Loading the index")
+    # Load the index
+    logger.info("Loading the index...")
     index = pd.read_csv(args.index)
     index = change_dir(index)
 
+    # Apply the model to each image
     logger.info("Applying the model to each image...")
     try:
-        index = apply_trained_model(index, model_path, device)  # Pass the device as an argument
+        index = apply_model(index, model_path)
     except Exception as e:
         logger.error(f"An error occurred while applying the model: {e}")
 
+    # Save the updated index
     logger.info("Saving the updated index...")
     try:
         output_path = args.output
