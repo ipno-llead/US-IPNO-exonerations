@@ -4,3 +4,4 @@ frozen/
 note/
 .snap
 __pycache__/
+.ipynb_checkpoints/
