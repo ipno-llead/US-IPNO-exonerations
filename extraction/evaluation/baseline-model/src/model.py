@@ -17,7 +17,7 @@ def parse_names(txt_path, csv_path):
         content = txt_file.read()
         
     pattern = re.compile(
-        r"(detective|sergeant|lieutenant|captain|corporal|deputy|criminalist|technician|investigator
+        r"(detective|sergeant|lieutenant|captain|corporal|deputy|criminalist|technician|investigator"
         r"|det\.|sgt\.|lt\.|cpt\.|cpl\.|dty\.|tech\.|dr\.)\s+([A-Z][A-Za-z]*(\s[A-Z][A-Za-z]*)?)",
         re.IGNORECASE,
     )
