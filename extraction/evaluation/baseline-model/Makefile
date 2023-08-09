@@ -13,7 +13,7 @@ all: $(outputs)
 $(csv_dir)/%.csv: $(script) $(txt_dir)/%.txt
 	-mkdir -p $(shell dirname $@)
 	python $< \
-		--input=$(txt_dir)/%.txt \
+		--input=$(txt_dir)/$*.txt \
 		--output=$@
 
 #all: $(txt_dir)
