@@ -10,8 +10,8 @@ clean:
 
 output/%.pdf: src/%.tex src/%.bib src/iclr2024_conference.sty
 	-mkdir output
-	cd src && pdflatex $*.tex
-	cd src && bibtex $*
+	cd src && pdflatex -output-directory=../output $*.tex
+	cd output && bibtex $*.aux
 	cd src && pdflatex $*
 	cd src && pdflatex $*
 	mv src/$*.pdf output/$*.pdf

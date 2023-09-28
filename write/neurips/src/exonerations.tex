@@ -1,413 +1,402 @@
-
-\documentclass{article} % For LaTeX2e
-\usepackage{iclr2024_conference,times}
-
-% Optional math commands from https://github.com/goodfeli/dlbook_notation.
-\input{math_commands.tex}
-
+\documentclass{article}
 \usepackage{hyperref}
-\usepackage{url}
+\usepackage{graphicx}
+\usepackage{listings}
+\usepackage{caption}
 
-
-\title{Formatting Instructions for ICLR 2024 \\ Conference Submissions}
-
-% Authors must not appear in the submitted version. They should be hidden
-% as long as the \iclrfinalcopy macro remains commented out below.
-% Non-anonymous submissions will be rejected without review.
-
-\author{Antiquus S.~Hippocampus, Natalia Cerebro \& Amelie P. Amygdale \thanks{ Use footnote for providing further information
-about author (webpage, alternative address)---\emph{not} for acknowledging
-funding agencies.  Funding acknowledgements go at the end of the paper.} \\
-Department of Computer Science\\
-Cranberry-Lemon University\\
-Pittsburgh, PA 15213, USA \\
-\texttt{\{hippo,brain,jen\}@cs.cranberry-lemon.edu} \\
-\And
-Ji Q. Ren \& Yevgeny LeNet \\
-Department of Computational Neuroscience \\
-University of the Witwatersrand \\
-Joburg, South Africa \\
-\texttt{\{robot,net\}@wits.ac.za} \\
-\AND
-Coauthor \\
-Affiliation \\
-Address \\
-\texttt{email}
-}
-
-% The \author macro works with any number of authors. There are two commands
-% used to separate the names and addresses of multiple authors: \And and \AND.
-%
-% Using \And between authors leaves it to \LaTeX{} to determine where to break
-% the lines. Using \AND forces a linebreak at that point. So, if \LaTeX{}
-% puts 3 of 4 authors names on the first line, and the last on the second
-% line, try using \AND instead of \And before the third author name.
-
-\newcommand{\fix}{\marginpar{FIX}}
-\newcommand{\new}{\marginpar{NEW}}
-
-%\iclrfinalcopy % Uncomment for camera-ready version, but NOT for submission.
 \begin{document}
 
+\section{Introduction}
+Exoneration documents, secured during legal proceedings that aim to right the wrongs of justice, are invaluable for understanding wrongful convictions. They cast a spotlight on law enforcement actions, revealing systemic challenges. Yet, finding and leveraging usable information within these collections remains a formidable task for researchers and advocates, due to their volume and unstructured heterogeneity.
 
-\maketitle
+This post introduces the methodology of the Innocence Discovery Initiative—a collaboration between Innocence Project New Orleans (IPNO) and the Human Rights Data Analysis Group (HRDAG). Our approach utilizes data processing technologies, machine learning, and cross-referencing with both IPNO's internal intake database and the Louisiana Law Enforcement Accountability Database (LLEAD). By developing a comprehensive index for these documents, targeting specific files, and analyzing cross-referenced data, we aim to unearth patterns and systemic issues that underpin wrongful convictions.
 
-\begin{abstract}
-The abstract paragraph should be indented 1/2~inch (3~picas) on both left and
-right-hand margins. Use 10~point type, with a vertical spacing of 11~points.
-The word \textsc{Abstract} must be centered, in small caps, and in point size 12. Two
-line spaces precede the abstract. The abstract must be limited to one
-paragraph.
-\end{abstract}
+\section{Using Large Language Models for structured information extraction from the IPNO case files}
+\begin{itemize}
+    \item \href{https://ip-no.org/who-we-are/staff/#ai}{Ayyub Ibrahim}, Director of Research for the Louisiana Law Enforcement Accountability Database, Innocence Project of New Orleans
+    \item \href{https://hrdag.org/people/tarak-shah/}{Tarak Shah}, Data Scientist, Human Rights Data Analysis Group
+\end{itemize}
 
-\section{Submission of conference papers to ICLR 2024}
+Exoneration documents, documents acquired during the legal processes that seek to rectify miscarriages of justice, offer invaluable insights into wrongful conviction cases. Particularly, they illuminate the roles and actions of law enforcement personnel. Yet, the sheer volume and lack of structure in these documents pose challenges for researchers, lawyers, and advocates dedicated to transparency and justice.
 
-ICLR requires electronic submissions, processed by
-\url{https://openreview.net/}. See ICLR's website for more instructions.
+In 2022, the Innocence Project New Orleans (IPNO) launched the Louisiana \href{https://llead.co/}{Law Enforcement Accountability Database (LLEAD)}, a consolidation of data from over 500 law enforcement agencies in Louisiana. To date, LLEAD hosts details of over 40,000 allegations of misconduct spanning 194 agencies across 48 of Louisiana's 64 parishes. This initiative is the first state-wide database of its kind. LLEAD is already an essential tool for exoneration work, and including wrongful conviction information in the database would make it even more useful.
 
-If your paper is ultimately accepted, the statement {\tt
-  {\textbackslash}iclrfinalcopy} should be inserted to adjust the
-format to the camera ready requirements.
+For example, in Orleans Parish, Louisiana, 78\% of wrongful convictions have been linked to law enforcement's failure to share exculpatory evidence with the defense, a rate more than double the national average. Given this backdrop, we seek to make these collections searchable and useful for lawyers, advocates, and community members to better investigate patterns of police misconduct and corruption. In order to do so, we rely on a multi-stage process:
 
-The format for the submissions is a variant of the NeurIPS format.
-Please read carefully the instructions below, and follow them
-faithfully.
+\begin{enumerate}
+    \item Metadata Compilation:
+    \begin{itemize}
+        \item file path and name
+        \item file type
+        \item sha1 content hash: we truncate this to create unique file identifiers
+        \item file size and number of pages
+        \item case ID: when we scanned the documents, we organized them into directories organized by case ID, here we pluck and validate the directory name to add a structured case id field to our metadata index.
+    \end{itemize}
+    
+    \item Page classification:
+    \begin{itemize}
+        \item police reports: include mentions of officers involved in the arrest that led to the wrongful conviction, or related arrests.
+        \item transcripts: court transcripts, recorded by clerks of the court, where officers appear as witnesses and describe their role in the conviction (including making the arrest, transporting evidence, interrogating the accused).
+        \item testimonies: witness testimony, which will include testimony from officers involved in the conviction
+    \end{itemize}
+    
+    \item Information Extraction: Currently, we're engaged in extracting structured information from the documents we've identified, and that work is the focus of the current post. Our goal is to extract structured information related to each police officer or prosecutor mentioned in the documents, such as their names, ranks, and roles in the wrongful conviction.
 
-\subsection{Style}
+    \item Deduplication: The previous step leaves us with many distinct mentions, but some individuals are mentioned many times, within the same case or across cases. Here we rely on HRDAG's \href{https://hrdag.org/tech-notes/adaptive-blocking-writeup-1.html}{extensive experience with database deduplication} to create a unique index of officers and prosecutors involved in wrongful convictions, and a record and the role or roles they had in the wrongful conviction.
 
-Papers to be submitted to ICLR 2024 must be prepared according to the
-instructions presented here.
+    \item Cross-referencing: In the final stage, we'll cross-reference the officer names and roles we've extracted with the Louisiana Law Enforcement Accountability Database \href{https://llead.co/}{(LLEAD)} to identify other cases these officers have been involved in.
+\end{enumerate}
 
-%% Please note that we have introduced automatic line number generation
-%% into the style file for \LaTeXe. This is to help reviewers
-%% refer to specific lines of the paper when they make their comments. Please do
-%% NOT refer to these line numbers in your paper as they will be removed from the
-%% style file for the final version of accepted papers.
+A primary task in our process is extracting officer information from documents – specifically, the officer's name and the role the officer played in the wrongful conviction. The extraction of such information is crucial for understanding the dynamics and potential lapses that led to the conviction. Given the importance of this task, it's essential to approach it with a methodology that ensures accuracy and comprehensiveness.
 
-Authors are required to use the ICLR \LaTeX{} style files obtainable at the
-ICLR website. Please make sure you use the current files and
-not previous versions. Tweaking the style files may be grounds for rejection.
+We initially considered a regex-based solution for this extraction task. Regular expressions, or regexes, are powerful tools for pattern matching within text. However, as we delved deeper into our data, we realized that the complexity and variability of the content rendered regex less than ideal. While regex excels at identifying specific patterns within text, it often struggles with variations in language and nuances that commonly appear in natural language texts, such as police reports and court transcripts.
 
-\subsection{Retrieval of style files}
+Consider the text string from a court transcript reading, "Sergeant Ruiz was mentioned as being involved in the joint investigation with Detective Martin Venezia regarding the Seafood City burglary and the murder of Kathy Ulfers." Such a sentence poses challenges for regex due to its inability to capture semantic context. Without understanding the broader narrative, regex cannot infer that Sergeant Ruiz acted as a lead detective in Kathy Ulfers' murder case.
 
-The style files for ICLR and other conference information are available online at:
+To further highlight the limitations of regex in handling such tasks, we designed a simple baseline model. Instead of attempting to capture the full scope of officer information extraction, this model focuses solely on extracting officer names as a starting point. This choice was intentional; by narrowing down the task, we hoped to provide a clear example of the strengths and weaknesses of regex in the context of real-world data.
+
+\begin{lstlisting}[language=Python, caption=Code Snippet 1, breaklines=true]
+    pattern = re.compile(r"(detective|sergeant|lieutenant|captain|corporal|deputy|criminalist|technician|investigator"
+                         r"|det\.|sgt\.|lt\.|cpt\.|cpl\.|dty\.|tech\.|dr\.)\s+([A-Z][A-Za-z]*(\s[A-Z][A-Za-z]*)?)", re.IGNORECASE)
+\end{lstlisting}
+    
+
+\begin{itemize}
+    \item After implementing our baseline model, we tested its performance on two different sets of data: police reports and court transcripts.
+    \item \textbf{Police Reports Results:}
+    \item \textbf{Precision}: 0.845: This indicates that among the instances our model predicted as officer names, 84.5\% of them were indeed officer names. A high precision suggests that the model is quite reliable in its positive predictions.
+    \item \textbf{Recall}: 0.518: This metric reveals that our model was able to identify only 51.8\% of the actual officer names present in the police reports. A lower recall signifies that while our predictions are accurate, we are missing out on a significant number of true officer names.
+    \item \textbf{F1 Score}: 0.614: The F1 score harmonizes precision and recall, giving us a balanced view of the model's performance. At 0.614, it suggests that there is room for improvement, especially in capturing more true positives without sacrificing precision.
+    \item \textbf{F\_beta}: 0.549: This score is another harmonic mean of precision and recall but gives more weight to recall. A score of 0.549 further emphasizes the model's challenges in identifying all true positives.
+    \item \textbf{Court Transcripts Results:}
+    \item \textbf{Precision}: 0.8656: Similar to the police reports, our model displayed high precision on court transcripts, indicating its reliability in positive predictions.
+    \item \textbf{Recall}: 0.4281: However, the recall is notably lower on the court transcripts, meaning our model missed out on more than half of the actual officer names present in these documents.
+    \item \textbf{F1 Score}: 0.5461: The F1 score for court transcripts is lower than that for police reports, suggesting a more pronounced trade-off between precision and recall in this dataset.
+    \item \textbf{F\_beta}: 0.4663: Once again, the F\_beta score underscores the need for improving recall without compromising precision.
+\end{itemize}
+
+While our regex-based baseline model exhibits high precision on both datasets, it struggles notably with recall. This indicates that while the names it identifies as officers are likely correct, it misses a substantial number of actual officer names present in the documents. These findings further emphasize the challenges of using regex alone for such a complex task and underscore the need for more advanced techniques that can capture the nuances and variations in language.
+
+An alternative approach is to prompt a generative language model with the document text along with a query describing our required output. One challenge with this approach is that the documents we're processing may be hundreds of pages long, whereas generative models have a limit to the length of the prompt you supply. We needed a way to pull out of each document just the chunks of text where the relevant officer information appears, to provide a more helpful prompt.
+
+We split up the problem into two steps, identifying the relevant chunks of text content, and then extracting structured officer information from those chunks. We use \href{https://docs.langchain.com/docs/}{Langchain}, a natural language processing library, to manage this pipeline, and use OpenAI's language model, GPT-3-Turbo-16k as the language model powering the pipeline.
+
+For the first step, identifying the relevant chunks of text within the larger document, we used the approach outlined in \href{https://arxiv.org/abs/2212.10496}{Precise Zero-Shot Dense Retrieval without Relevance Labels}. This approach splits our information retrieval task into multiple steps:
+
+\begin{enumerate}
+    \item We feed our query asking for names and roles of mentioned officers to an instruction-following generative language model, instructing it to compose a "hypothetical" document in response to the query.
+    \item We embed the hypothetical document.
+    \item We chunk the document text into overlapping chunks, and calculate embeddings for each chunk using the same embedding system we used for the hypothetical document.
+    \item We use \href{https://faiss.ai/}{Faiss} to do similarity search, using similarity to our hypothetical document embeddings to identify chunks of relevant text content.
+\end{enumerate}
+
+Here is the method we use to generate hypothetical embeddings. The resulting object can be used to embed chunks of text, enabling efficient similarity search over them.
+
+\begin{lstlisting}[language=Python, caption=Code Snippet 2, breaklines=true]
+    PROMPT_TEMPLATE_HYDE = PromptTemplate(
+        input_variables=["question"],
+        template="""
+        You're an AI assistant specializing in criminal justice research. 
+        Your main focus is on identifying the names and providing detailed context of mention for each law enforcement personnel. 
+        This includes police officers, detectives, deputies, lieutenants, sergeants, captains, technicians, coroners, investigators, patrolmen, and criminalists, 
+        as described in court transcripts.
+        Be aware that the titles "Detective" and "Officer" might be used interchangeably.
+        Be aware that the titles "Technician" and "Tech" might be used interchangeably.
+        Question: {question}
+        Roles and Responses:"""
+    )
+    
+    def generate_hypothetical_embeddings():
+        llm = OpenAI()
+        prompt = PROMPT_TEMPLATE_HYDE
+        llm_chain = LLMChain(llm=llm, prompt=prompt)
+        base_embeddings = OpenAIEmbeddings()
+        embeddings = HypotheticalDocumentEmbedder(
+            llm_chain=llm_chain, base_embeddings=base_embeddings
+        )
+        return embeddings
+\end{lstlisting}
+
+
+The \texttt{process\_single\_document} function converts an input document into a vector database of chunks. This function employs Langchain's RecursiveCharacterTextSplitter to split documents into chunks of 500 tokens, while maintaining an overlap of 250 tokens to ensure contextual continuity.
+
+There are times when the model might inadvertently identify names without clear ties to law enforcement personnel. By cross-referencing the model's output with LLEAD, we believe we will be able to filter out many such false positives (it's worth noting that some law enforcement personnel mentioned in the documents will be absent from LLEAD, but our current focus is on officers we can track using LLEAD). On the other hand, we have no way of recovering officer mentions if they are not picked up by our extraction process. In light of this, when evaluating the model we are more interested in maximizing recall, ensuring we identify as many genuine law enforcement mentions as we can.  To quantify this focus on recall, we employed the \href{https://en.wikipedia.org/wiki/F-score#F%CE%B2\_score}{F-beta score} (with $\beta=2$), which weighs recall twice as heavily as precision. We tested the model using varying chunk sizes, including 2000, 1000, and 500, with corresponding overlaps of 1000, 500, and 250 respectively. Based on our evaluations, the optimal configuration is a chunk size of 500 with an overlap of 250. After segmentation, the text is transformed into a high-dimensional space using precomputed embeddings from our hypothetical document embedder. The \texttt{FAISS.from\_documents} function aids in this transformation, constructing an indexed document database designed for similarity searches.
+
+
+\begin{lstlisting}[language=Python, caption=Code Snippet 3, breaklines=true]
+    def process_single_document(file_path, embeddings):
+        logger.info(f"Processing document: {file_path}")
+        loader = JSONLoader(file_path)
+        text = loader.load()
+        logger.info(f"Text loaded from document: {file_path}")
+        text_splitter = RecursiveCharacterTextSplitter(chunk_size=500, chunk_overlap=250)
+        docs = text_splitter.split_documents(text)
+        db = FAISS.from_documents(docs, embeddings)
+        return db
+\end{lstlisting}
+
+In the following sections, we define the core function \texttt{get\_response\_from\_query(db, query)}. This function serves as the backbone of our information extraction process, taking in a document database and a query, and returning the system's response to the query. 
+
+The process begins by setting up the relevant parameters. We use a prompt template to guide the query and a role template to define the roles we're interested in. We set the temperature parameter to 0 to maximize the determinism of our responses. The k parameter is set to 20, a decision guided by the F-beta score results from our testing phase, instructing the system to select and concatenate the top 20 relevant text chunks from the document corpus. These documents are then sorted by similarity score to maximize the model's performance. As suggested in the paper \href{https://arxiv.org/abs/2307.03172}{Lost in the Middle: How Language Models Use Long Contexts}, for retrieval tasks current language models perform best when the relevant data is located at the beginning of their context window.
+
+The relevant chunks of text are then passed to the \texttt{LLMChain} class of the LangChain module as part of the 'run' method. In addition to relevant chunks, the 'run' method also receives the \texttt{PromptTemplate}, \texttt{RoleTemplate}, and the original query.
+
+The \texttt{LLMChain} processes these inputs and generates a structured response to the initial query.
+
+\begin{lstlisting}[language={}, breaklines=true, caption=Your Caption Here]
+    PROMPT_TEMPLATE_MODEL = PromptTemplate(
+        input_variables=["roles", "question", "docs"],
+        template="""
+        As an AI assistant, my role is to meticulously analyze court transcripts, traditional officer roles, and extract information about law enforcement personnel.
+    
+        Query: {question}
+    
+        Transcripts: {docs}
+    
+        Roles: {roles}
+    
+        The response will contain:
+    
+        1 The name of an officer, detective, deputy, lieutenant, 
+          sergeant, captain, officer, coroner, investigator, criminalist, patrolman, or technician - 
+          if an individual's name is not associated with one of these titles they do not work in law enforcement.
+          Please prefix the name with "Officer Name: ". 
+          For example, "Officer Name: John Smith".
+    
+        2 If available, provide an in-depth description of the context of their mention. 
+          If the context induces ambiguity regarding the individual's employment in law enforcement, 
+          remove the individual.
+          Please prefix this information with "Officer Context: ". 
+    
+        3 Review the context to discern the role of the officer.
+          Please prefix this information with "Officer Role: "
+          For example, the column "Officer Role: Lead Detective" will be filled with a value of 1 for officers who were the lead detective.
+    """,
+    
+    ROLE_TEMPLATE = """
+    US-IPNO-Exonerations: Model Evaluation Guide 
+    Roles:
+    Lead Detective
+    1. Coordinates with other detectives and law enforcement officers on the case.
+    2. Liaises with the prosecutor's office, contributing to legal strategy and court proceedings.
+    3. May be involved in obtaining and executing search warrants.
+    4. Could be called to testify in court about the investigation.
+    """
+\end{lstlisting}
+    
+
+\begin{lstlisting}[language=Python, caption=Code Snippet 4, breaklines=true]
+    def get_response_from_query(db, query):
+        # Set up the parameters
+        prompt = PROMPT_TEMPLATE_MODEL
+        roles = ROLE_TEMPLATE
+        temperature = 0
+        k = 20
+    
+        # Perform the similarity search
+        doc_list = db.similarity_search_with_score(query, k=k)
+    
+        docs = sorted(doc_list, key=lambda x: x[1], reverse=True)
+    
+        third = len(docs) // 3
+    
+        highest_third = docs[:third]
+        middle_third = docs[third:2*third]
+        lowest_third = docs[2*third:]
+    
+        highest_third = sorted(highest_third, key=lambda x: x[1], reverse=True)
+        middle_third = sorted(middle_third, key=lambda x: x[1], reverse=True)
+        lowest_third = sorted(lowest_third, key=lambda x: x[1], reverse=True)
+    
+        docs = highest_third + lowest_third + middle_third
+    
+        docs_page_content = " ".join([d[0].page_content for d in docs])
+    
+        # Create an instance of the OpenAI model
+        llm = ChatOpenAI(model_name="gpt-3.5-turbo")
+    
+        # Create an instance of the LLMChain
+        chain = LLMChain(llm=llm, prompt=prompt)
+    
+        # Run the LLMChain and print the response
+        response = chain.run(roles=roles, question=query, docs=docs_page_content, temperature=temperature)
+        print(response)
+    
+        # Return the response and the documents
+        return response
+\end{lstlisting}
+
+\subsection{Model Contextual Inputs and Outputs}
+
+For additional context, the following showcases the inputs and outputs of our approach:
+
+\noindent \textbf{Query}:  
+``Identify individuals, by name, with the specific titles of officers, sergeants, lieutenants, captains, detectives, homicide officers, and crime lab personnel in the transcript. Specifically, provide the context of their mention related to key events in the case, if available."
+
+\noindent \textbf{Relevant Document}:  
+(1 of 20 documents identified by the Faiss similarity search as relevant)
+
+\begin{quote}
+Martin Venezia, New Orleans police sergeant.\\
+``A 16 .01 Sergeant Venezia, where are you assigned now?"\\
+``A Second Police District. 13 . And in October, September of 1979 and in Q 19 September and October of 1980, where were you assigned? :1 Homicide division. A. And how long have you been on the police department right now? Thirteen and a half years. A Officer Venezia, when did you or did you ever take over the investigation of ... Cathy Ulfers' murder? A"
+\end{quote}
+\textit{metadata}: \{'source': '../../data/convictions/transcripts/iterative(C) Det. Martin Venezia Testimony Trial One.docx'\}
+
+\noindent \textbf{Response from the Model}:
+
+\begin{itemize}
+    \item \textbf{Officer Name}: Sergeant Martin Venezia  
+    \item \textbf{Officer Context}: Sergeant Martin Venezia, formerly assigned to the Homicide Division, took over the investigation of Cathy Ulfers' murder.  
+    \item \textbf{Officer Role}: Lead Detective
+\end{itemize}
+
+\section{Evaluations, issues, improvements}
+
+In our relentless pursuit to optimize the model's capability to extract officer names from documents, we embarked on a comprehensive evaluation journey.
+
+\noindent \textbf{Preprocessing Parameters}:
+\begin{itemize}
+    \item \textbf{Chunk Size}: Defines the number of consecutive words or units of text processed at once.
+    \item \textbf{Chunk Overlap}: This parameter dictates the number of words consecutive chunks share. For example, with an overlap of 250, the subsequent chunk begins 250 words into the previous chunk.
+\end{itemize}
+
+\noindent \textbf{Model-specific Parameters}:
+\begin{itemize}
+    \item \textbf{Hypothetical Document Embeddings (HYDE)}: We keenly examined their influence on the model's overall performance.
+    \item \textbf{'k' Value}: Represents the number of text chunks fed into the model.
+    \item \textbf{Temperature Parameter}: Modulates the randomness factor within the model.
+\end{itemize}
+
+Our primary metric for assessing our model's performance was the F-beta score. Unlike the traditional F1 score that gives equal weightage to both precision and recall, the F-beta score offers flexibility in weighting. We engineered our score to prioritize recall, echoing the significance of spotting relevant information comprehensively, even at the expense of occasionally marking some irrelevant content.
+
+\begin{itemize}
+    \item Chunk size of 500
+    \item Chunk overlap of 250
+    \item Integration of HYDE embeddings
+    \item 'k' value of 20
+\end{itemize}
+
+In terms of actual metrics, the F-beta score stood at 0.864909 for police reports and ascended to 0.813397 for transcripts.
+
+During our evaluations, larger chunk sizes like 1000 and 2000, though appearing beneficial, curtailed our F-beta scores. Overlaps greater than the optimal, such as 500 and 1000, also dampened our results, despite offering more context. The pronounced edge provided by the HYDE embeddings further bolstered their significance in our model.
+
+Another significant observation was about the temperature parameter. A temperature of 1 generally led to enhanced F-beta scores, especially when discerning officer names within police reports. As we transition to the subsequent phase, fine-tuning of this parameter becomes pivotal.
+
+\subsection{Model Behavior Analysis Over Iterative Runs}
+
+Post-evaluation of the model, our next pursuit was understanding its behavior over iterative runs. The inherent stochastic nature of generative text models means that multiple runs of the same document, using the same parameters, can produce varied outputs. This brings forth the challenge of determining an ideal number of iterations — a balance between comprehensive results and cost-efficiency.
+
+To navigate this, we introduced two distinct query strategies:
+
+\subsubsection{Multiple Queries Approach}
+
+Under this approach, six meticulously crafted queries were used, targeting specific information facets:
+
+\begin{enumerate}
+    \item \textbf{Query 1:} Identify individuals, by name, with specific titles mentioned. Provide context related to key events in the case.
+    \item \textbf{Query 2:} List individuals and detail the significant decisions or actions they undertook.
+    \item \textbf{Query 3:} Locate individuals and discuss their interactions with other case individuals.
+    \item \textbf{Query 4:} Highlight individuals and describe their roles or responsibilities.
+    \item \textbf{Query 5:} Outline individuals and specify any noteworthy outcomes they achieved.
+    \item \textbf{Query 6:} Pinpoint individuals and emphasize significant incidents they were part of.
+\end{enumerate}
+
+\subsubsection{Singular Query Approach}
+
+This method capitalized on a comprehensive query designed to encapsulate all sought-after information facets. Iterative runs of the same query on the document, with each yielding slightly different results, were compiled:
+
+\begin{quote}
+\textbf{Query:} Identify each individual and present a contextual description that includes their decisions, interactions, roles, outcomes, and any significant incidents.
+\end{quote}
+
+In the context of police reports, a detailed analysis of the singular query method showed that its performance metrics improved with each iteration up to the 4th iteration, with a marked increase in the F1 Beta score after each iteration. However, past this iteration, the incremental gains in the score reduced, indicating we had hit the point of diminishing returns.
+
 \begin{center}
-   \url{http://www.iclr.cc/}
+    \includegraphics[width=0.8\textwidth]{data/avg_cum_fbeta_police_reports.png}
+    \\
+    \textit{Figure 1: Average Cumulative F1 Beta Score for 1 Query vs. 6 Queries (Police Reports)}
 \end{center}
-The file \verb+iclr2024_conference.pdf+ contains these
-instructions and illustrates the
-various formatting requirements your ICLR paper must satisfy.
-Submissions must be made using \LaTeX{} and the style files
-\verb+iclr2024_conference.sty+ and \verb+iclr2024_conference.bst+ (to be used with \LaTeX{}2e). The file
-\verb+iclr2024_conference.tex+ may be used as a ``shell'' for writing your paper. All you
-have to do is replace the author, title, abstract, and text of the paper with
-your own.
 
-The formatting instructions contained in these style files are summarized in
-sections \ref{gen_inst}, \ref{headings}, and \ref{others} below.
+The analysis of court transcripts, on the other hand, offered a nuanced perspective. Both the singular and the 6 queries methods exhibited an upward trend in their performance metrics up until the 6th iteration.
 
-\section{General formatting instructions}
-\label{gen_inst}
+\begin{center}
+    \includegraphics[width=0.8\textwidth]{data/avg_cum_fbeta_court_transcripts.png}
+    \\
+    \textit{Figure 2: Average Cumulative F1 Beta Score for 1 Query vs. 6 Queries (Transcripts)}
+\end{center}
 
-The text must be confined within a rectangle 5.5~inches (33~picas) wide and
-9~inches (54~picas) long. The left margin is 1.5~inch (9~picas).
-Use 10~point type with a vertical spacing of 11~points. Times New Roman is the
-preferred typeface throughout. Paragraphs are separated by 1/2~line space,
-with no indentation.
+Analyzing the results from both police reports and court transcripts gave us confidence in the singular query method. It consistently demonstrated a balance between performance and computational/cost demands, with diminishing performance gains beyond the 4th iteration in both datasets. Therefore, based on this analysis, the singular query strategy was selected for deployment over 4 iterations for all types of documents. 
 
-Paper title is 17~point, in small caps and left-aligned.
-All pages should start at 1~inch (6~picas) from the top of the page.
+\section{Future research/next steps}
 
-Authors' names are
-set in boldface, and each name is placed above its corresponding
-address. The lead author's name is to be listed first, and
-the co-authors' names are set to follow. Authors sharing the
-same address can be on the same line.
+Currently, GPT-4's pricing is 0.03 per 1K tokens for inputs and 0.06 per 1K tokens for outputs. In contrast, GPT-3-Turbo-4K is priced at 0.0015 per 1K tokens for inputs and 0.002 per 1K tokens for outputs. This means using GPT-4 is 19x and 29x more expensive, respectively. Given these cost considerations, coupled with challenges our existing GPT-3.5-Turbo-16K model faced in extracting officer details from documents in our FAISS similarity database, we've pivoted our focus towards the GPT-3.5-Turbo-4K model. While the GPT-3.5-Turbo-4K itself isn't new, the capability to fine-tune it was introduced by OpenAI in August 2023, offering a promising avenue for improvement.
 
-Please pay special attention to the instructions in section \ref{others}
-regarding figures, tables, acknowledgments, and references.
+In order to address our model's shortcomings, we found ways to efficiently generate additional training data. Using document samples, we extracted details about individual law enforcement officers, their contexts, and roles. Recognizing the potential of GPT-4, we leveraged its capabilities to craft training documents that closely resembled our real-world challenges. We provided GPT-4 with sample documents based on authentic data, enabling it to produce outputs with the stylistic nuances we often encounter---like poor OCR quality, fragmented sentences, inconsistent capitalization, and syntactic inconsistencies.
 
+Here's an example of the training data we generated using GPT-4:
 
-There will be a strict upper limit of 9 pages for the main text of the initial submission, with unlimited additional pages for citations. 
+\begin{lstlisting}[breaklines=true]
+    { 
+        "messages": 
+        [{ "role": "system", "content": 
+            "As an AI assistant, my role is to meticulously analyze criminal justice documents and extract information about law enforcement personnel. The response will contain: 1) The name of a law enforcement personnel. The individual's name must be prefixed with one of the following titles to be in law enforcement: Detective, Sergeant, Lieutenant, Captain, Deputy, Officer, Patrol Officer, Criminalist, Technician, Coroner, or Dr. Please prefix the name with 'Officer Name:  I will derive this data from the following paragraph: On September 13, DET. X. Y. Allen responded to claims of counterfeit money circulating in the Westside Market. Primary informants were Mrs. Jacobs, a vendor, and Mr. Silva, a customer. FORWARD COPY TO: DETECTIVE DIVISION. INFORMANT DOCS."}, 
+            { "role": "user", "content": 'Identify each individual in the transcript, by name, who are directly referred to as officers, sergeants, lieutenants, captains, detectives, homicide officers, and crime lab personnel." }, 
+            { "role": "assistant", "content": 
+            "Officer Name: DET. X. Y. Allen
+            Officer Context: On September 13, DET. X. Y. Allen responded to claims of counterfeit money circulating in the Westside Market. 
+            Officer Role: Detective" }] 
+    }
+    \end{lstlisting}
 
-\section{Headings: first level}
-\label{headings}
+In our fine-tuning experiments, we worked with four dataset sizes: 25, 50, 75, and 100 examples. Analyzing the outcomes, a clear trend emerged: as we increased the dataset size, the model's performance improved incrementally. Even with the constraints of the 4k token limit, which led us to adjust our K parameter from 25 to 15, our model exhibited differentiated performance across document types. It surpassed the GPT-3.5-Turbo-16k model when processing court transcripts and matched its efficiency for police reports. However, as promising as these strides are, they haven't yet reached the capabilities of GPT-4 (See appendix for GPT-4 results).
 
-First level headings are in small caps,
-flush left and in point size 12. One line space before the first level
-heading and 1/2~line space after the first level heading.
-
-\subsection{Headings: second level}
-
-Second level headings are in small caps,
-flush left and in point size 10. One line space before the second level
-heading and 1/2~line space after the second level heading.
-
-\subsubsection{Headings: third level}
-
-Third level headings are in small caps,
-flush left and in point size 10. One line space before the third level
-heading and 1/2~line space after the third level heading.
-
-\section{Citations, figures, tables, references}
-\label{others}
-
-These instructions apply to everyone, regardless of the formatter being used.
-
-\subsection{Citations within the text}
-
-Citations within the text should be based on the \texttt{natbib} package
-and include the authors' last names and year (with the ``et~al.'' construct
-for more than two authors). When the authors or the publication are
-included in the sentence, the citation should not be in parenthesis using \verb|\citet{}| (as
-in ``See \citet{Hinton06} for more information.''). Otherwise, the citation
-should be in parenthesis using \verb|\citep{}| (as in ``Deep learning shows promise to make progress
-towards AI~\citep{Bengio+chapter2007}.'').
-
-The corresponding references are to be listed in alphabetical order of
-authors, in the \textsc{References} section. As to the format of the
-references themselves, any style is acceptable as long as it is used
-consistently.
-
-\subsection{Footnotes}
-
-Indicate footnotes with a number\footnote{Sample of the first footnote} in the
-text. Place the footnotes at the bottom of the page on which they appear.
-Precede the footnote with a horizontal rule of 2~inches
-(12~picas).\footnote{Sample of the second footnote}
-
-\subsection{Figures}
-
-All artwork must be neat, clean, and legible. Lines should be dark
-enough for purposes of reproduction; art work should not be
-hand-drawn. The figure number and caption always appear after the
-figure. Place one line space before the figure caption, and one line
-space after the figure. The figure caption is lower case (except for
-first word and proper nouns); figures are numbered consecutively.
-
-Make sure the figure caption does not get separated from the figure.
-Leave sufficient space to avoid splitting the figure and figure caption.
-
-You may use color figures.
-However, it is best for the
-figure captions and the paper body to make sense if the paper is printed
-either in black/white or in color.
 \begin{figure}[h]
-\begin{center}
-%\framebox[4.0in]{$\;$}
-\fbox{\rule[-.5cm]{0cm}{4cm} \rule[-.5cm]{4cm}{0cm}}
-\end{center}
-\caption{Sample figure caption.}
+    \centering
+    \includegraphics[width=0.7\textwidth]{data/police_reports_graph_tuned.png}
+    \caption{Figure 3: Average Cumulative F1 Beta Score for 1 Query vs. 6 Queries (Police Reports) Model: GPT-3}
 \end{figure}
 
-\subsection{Tables}
+\begin{figure}[h]
+    \centering
+    \includegraphics[width=0.7\textwidth]{data/court_transcripts_graph_tuned.png}
+    \caption{Figure 4: Average Cumulative F1 Beta Score for 1 Query vs. 6 Queries (Court Transcripts) Model: GPT-3}
+\end{figure}
 
-All tables must be centered, neat, clean and legible. Do not use hand-drawn
-tables. The table number and title always appear before the table. See
-Table~\ref{sample-table}.
+The results from our current fine-tuning experiments with GPT models provide valuable insights into the potential and limitations of AI in data extraction tasks. Our observations underscore the significance of dataset size and quality, as well as the implications of token constraints on model performance. As we move forward:
 
-Place one line space before the table title, one line space after the table
-title, and one line space after the table. The table title must be lower case
-(except for first word and proper nouns); tables are numbered consecutively.
+\begin{itemize}
+    \item We will delve deeper into the interplay between token limits and extraction accuracy, particularly in documents with varying complexities.
+    \item We'll further investigate the optimal balance between training data volume and model efficiency, exploring potential diminishing returns or inflection points.
+    \item Given the differentiated performance across document types, our research will also focus on domain-specific fine-tuning to optimize extraction from court transcripts, police reports, and other legal documents.
+\end{itemize}
 
-\begin{table}[t]
-\caption{Sample table title}
-\label{sample-table}
-\begin{center}
-\begin{tabular}{ll}
-\multicolumn{1}{c}{\bf PART}  &\multicolumn{1}{c}{\bf DESCRIPTION}
-\\ \hline \\
-Dendrite         &Input terminal \\
-Axon             &Output terminal \\
-Soma             &Cell body (contains cell nucleus) \\
-\end{tabular}
-\end{center}
-\end{table}
-
-\section{Default Notation}
-
-In an attempt to encourage standardized notation, we have included the
-notation file from the textbook, \textit{Deep Learning}
-\cite{goodfellow2016deep} available at
-\url{https://github.com/goodfeli/dlbook_notation/}.  Use of this style
-is not required and can be disabled by commenting out
-\texttt{math\_commands.tex}.
-
-
-\centerline{\bf Numbers and Arrays}
-\bgroup
-\def\arraystretch{1.5}
-\begin{tabular}{p{1in}p{3.25in}}
-$\displaystyle a$ & A scalar (integer or real)\\
-$\displaystyle \va$ & A vector\\
-$\displaystyle \mA$ & A matrix\\
-$\displaystyle \tA$ & A tensor\\
-$\displaystyle \mI_n$ & Identity matrix with $n$ rows and $n$ columns\\
-$\displaystyle \mI$ & Identity matrix with dimensionality implied by context\\
-$\displaystyle \ve^{(i)}$ & Standard basis vector $[0,\dots,0,1,0,\dots,0]$ with a 1 at position $i$\\
-$\displaystyle \text{diag}(\va)$ & A square, diagonal matrix with diagonal entries given by $\va$\\
-$\displaystyle \ra$ & A scalar random variable\\
-$\displaystyle \rva$ & A vector-valued random variable\\
-$\displaystyle \rmA$ & A matrix-valued random variable\\
-\end{tabular}
-\egroup
-\vspace{0.25cm}
-
-\centerline{\bf Sets and Graphs}
-\bgroup
-\def\arraystretch{1.5}
-
-\begin{tabular}{p{1.25in}p{3.25in}}
-$\displaystyle \sA$ & A set\\
-$\displaystyle \R$ & The set of real numbers \\
-$\displaystyle \{0, 1\}$ & The set containing 0 and 1 \\
-$\displaystyle \{0, 1, \dots, n \}$ & The set of all integers between $0$ and $n$\\
-$\displaystyle [a, b]$ & The real interval including $a$ and $b$\\
-$\displaystyle (a, b]$ & The real interval excluding $a$ but including $b$\\
-$\displaystyle \sA \backslash \sB$ & Set subtraction, i.e., the set containing the elements of $\sA$ that are not in $\sB$\\
-$\displaystyle \gG$ & A graph\\
-$\displaystyle \parents_\gG(\ervx_i)$ & The parents of $\ervx_i$ in $\gG$
-\end{tabular}
-\vspace{0.25cm}
-
-
-\centerline{\bf Indexing}
-\bgroup
-\def\arraystretch{1.5}
-
-\begin{tabular}{p{1.25in}p{3.25in}}
-$\displaystyle \eva_i$ & Element $i$ of vector $\va$, with indexing starting at 1 \\
-$\displaystyle \eva_{-i}$ & All elements of vector $\va$ except for element $i$ \\
-$\displaystyle \emA_{i,j}$ & Element $i, j$ of matrix $\mA$ \\
-$\displaystyle \mA_{i, :}$ & Row $i$ of matrix $\mA$ \\
-$\displaystyle \mA_{:, i}$ & Column $i$ of matrix $\mA$ \\
-$\displaystyle \etA_{i, j, k}$ & Element $(i, j, k)$ of a 3-D tensor $\tA$\\
-$\displaystyle \tA_{:, :, i}$ & 2-D slice of a 3-D tensor\\
-$\displaystyle \erva_i$ & Element $i$ of the random vector $\rva$ \\
-\end{tabular}
-\egroup
-\vspace{0.25cm}
-
-
-\centerline{\bf Calculus}
-\bgroup
-\def\arraystretch{1.5}
-\begin{tabular}{p{1.25in}p{3.25in}}
-% NOTE: the [2ex] on the next line adds extra height to that row of the table.
-% Without that command, the fraction on the first line is too tall and collides
-% with the fraction on the second line.
-$\displaystyle\frac{d y} {d x}$ & Derivative of $y$ with respect to $x$\\ [2ex]
-$\displaystyle \frac{\partial y} {\partial x} $ & Partial derivative of $y$ with respect to $x$ \\
-$\displaystyle \nabla_\vx y $ & Gradient of $y$ with respect to $\vx$ \\
-$\displaystyle \nabla_\mX y $ & Matrix derivatives of $y$ with respect to $\mX$ \\
-$\displaystyle \nabla_\tX y $ & Tensor containing derivatives of $y$ with respect to $\tX$ \\
-$\displaystyle \frac{\partial f}{\partial \vx} $ & Jacobian matrix $\mJ \in \R^{m\times n}$ of $f: \R^n \rightarrow \R^m$\\
-$\displaystyle \nabla_\vx^2 f(\vx)\text{ or }\mH( f)(\vx)$ & The Hessian matrix of $f$ at input point $\vx$\\
-$\displaystyle \int f(\vx) d\vx $ & Definite integral over the entire domain of $\vx$ \\
-$\displaystyle \int_\sS f(\vx) d\vx$ & Definite integral with respect to $\vx$ over the set $\sS$ \\
-\end{tabular}
-\egroup
-\vspace{0.25cm}
-
-\centerline{\bf Probability and Information Theory}
-\bgroup
-\def\arraystretch{1.5}
-\begin{tabular}{p{1.25in}p{3.25in}}
-$\displaystyle P(\ra)$ & A probability distribution over a discrete variable\\
-$\displaystyle p(\ra)$ & A probability distribution over a continuous variable, or over
-a variable whose type has not been specified\\
-$\displaystyle \ra \sim P$ & Random variable $\ra$ has distribution $P$\\% so thing on left of \sim should always be a random variable, with name beginning with \r
-$\displaystyle  \E_{\rx\sim P} [ f(x) ]\text{ or } \E f(x)$ & Expectation of $f(x)$ with respect to $P(\rx)$ \\
-$\displaystyle \Var(f(x)) $ &  Variance of $f(x)$ under $P(\rx)$ \\
-$\displaystyle \Cov(f(x),g(x)) $ & Covariance of $f(x)$ and $g(x)$ under $P(\rx)$\\
-$\displaystyle H(\rx) $ & Shannon entropy of the random variable $\rx$\\
-$\displaystyle \KL ( P \Vert Q ) $ & Kullback-Leibler divergence of P and Q \\
-$\displaystyle \mathcal{N} ( \vx ; \vmu , \mSigma)$ & Gaussian distribution %
-over $\vx$ with mean $\vmu$ and covariance $\mSigma$ \\
-\end{tabular}
-\egroup
-\vspace{0.25cm}
-
-\centerline{\bf Functions}
-\bgroup
-\def\arraystretch{1.5}
-\begin{tabular}{p{1.25in}p{3.25in}}
-$\displaystyle f: \sA \rightarrow \sB$ & The function $f$ with domain $\sA$ and range $\sB$\\
-$\displaystyle f \circ g $ & Composition of the functions $f$ and $g$ \\
-  $\displaystyle f(\vx ; \vtheta) $ & A function of $\vx$ parametrized by $\vtheta$.
-  (Sometimes we write $f(\vx)$ and omit the argument $\vtheta$ to lighten notation) \\
-$\displaystyle \log x$ & Natural logarithm of $x$ \\
-$\displaystyle \sigma(x)$ & Logistic sigmoid, $\displaystyle \frac{1} {1 + \exp(-x)}$ \\
-$\displaystyle \zeta(x)$ & Softplus, $\log(1 + \exp(x))$ \\
-$\displaystyle || \vx ||_p $ & $\normlp$ norm of $\vx$ \\
-$\displaystyle || \vx || $ & $\normltwo$ norm of $\vx$ \\
-$\displaystyle x^+$ & Positive part of $x$, i.e., $\max(0,x)$\\
-$\displaystyle \1_\mathrm{condition}$ & is 1 if the condition is true, 0 otherwise\\
-\end{tabular}
-\egroup
-\vspace{0.25cm}
-
-
-
-\section{Final instructions}
-Do not change any aspects of the formatting parameters in the style files.
-In particular, do not modify the width or length of the rectangle the text
-should fit into, and do not change font sizes (except perhaps in the
-\textsc{References} section; see below). Please note that pages should be
-numbered.
-
-\section{Preparing PostScript or PDF files}
-
-Please prepare PostScript or PDF files with paper size ``US Letter'', and
-not, for example, ``A4''. The -t
-letter option on dvips will produce US Letter files.
-
-Consider directly generating PDF files using \verb+pdflatex+
-(especially if you are a MiKTeX user).
-PDF figures must be substituted for EPS figures, however.
-
-Otherwise, please generate your PostScript and PDF files with the following commands:
-\begin{verbatim}
-dvips mypaper.dvi -t letter -Ppdf -G0 -o mypaper.ps
-ps2pdf mypaper.ps mypaper.pdf
-\end{verbatim}
-
-\subsection{Margins in LaTeX}
-
-Most of the margin problems come from figures positioned by hand using
-\verb+\special+ or other commands. We suggest using the command
-\verb+\includegraphics+
-from the graphicx package. Always specify the figure width as a multiple of
-the line width as in the example below using .eps graphics
-\begin{verbatim}
-   \usepackage[dvips]{graphicx} ...
-   \includegraphics[width=0.8\linewidth]{myfile.eps}
-\end{verbatim}
-or % Apr 2009 addition
-\begin{verbatim}
-   \usepackage[pdftex]{graphicx} ...
-   \includegraphics[width=0.8\linewidth]{myfile.pdf}
-\end{verbatim}
-for .pdf graphics.
-See section~4.4 in the graphics bundle documentation (\url{http://www.ctan.org/tex-archive/macros/latex/required/graphics/grfguide.ps})
-
-A number of width problems arise when LaTeX cannot properly hyphenate a
-line. Please give LaTeX hyphenation hints using the \verb+\-+ command.
-
-\subsubsection*{Author Contributions}
-If you'd like to, you may include  a section for author contributions as is done
-in many journals. This is optional and at the discretion of the authors.
-
-\subsubsection*{Acknowledgments}
-Use unnumbered third level headings for the acknowledgments. All
-acknowledgments, including those to funding agencies, go at the end of the paper.
-
-
-\bibliography{exonerations}
-\bibliographystyle{iclr2024_conference}
-
-\appendix
 \section{Appendix}
-You may include other additional sections here.
+
+\begin{itemize}
+\item GPT-4 applied to Police Reports
+
+\begin{center}
+    \includegraphics[width=0.6\textwidth]{data/police_reports_graph_gpt-4.png}
+    \captionof{figure}{Average Cumulative F1 Beta Score for 1 Query vs. 6 Queries (Police Reports) - Model: GPT-4}
+\end{center}
+
+\item GPT-4 applied to Court Transcripts
+
+\begin{center}
+    \includegraphics[width=0.6\textwidth]{data/court_transcripts_graph_gpt-4.png}
+    \captionof{figure}{Average Cumulative F1 Beta Score for 1 Query vs. 6 Queries (Court Transcripts) - Model: GPT-4}
+\end{center}
+
+\end{itemize}
+
+\section{Acknowledgements}
+
+\begin{itemize}
+\item Innocence Project New Orleans: Huy Dao
+\item Public Data Works: Rajiv Sinclair, Khoi Pham
+\item Human Rights Data Analysis Group: Dr. Megan Price
+\item and OpenAI, for their generous donation of research credits, without which we could not have run all of these experiments.
+\end{itemize}
 
 \end{document}
