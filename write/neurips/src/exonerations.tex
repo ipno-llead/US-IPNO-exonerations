@@ -4,24 +4,32 @@
 \usepackage{listings}
 \usepackage{caption}
 
+\lstset{
+  breaklines=true, 
+  breakatwhitespace=true, 
+  basicstyle=\small\ttfamily, 
+  columns=fullflexible 
+}
+
+\title{Using Large Language Models for structured information extraction from the IPNO case files}
+
+\author{
+    Ayyub Ibrahim\footnote{\href{https://ip-no.org/who-we-are/staff/}{Ayyub Ibrahim's Profile}} \\
+    Director of Research for LLEAD, IPNO
+    \and
+    Tarak Shah\footnote{\href{https://hrdag.org/people/tarak-shah/}{Tarak Shah's Profile}} \\
+    Data Scientist, HRDAG
+}
+
 \begin{document}
+\maketitle
+
+\section*{Abstract}
+Exoneration documents, secured during legal proceedings that aim to right the wrongs of justice, are invaluable for understanding wrongful convictions. They cast a spotlight on law enforcement actions, revealing systemic challenges. Yet, finding and leveraging usable information within these collections remains a formidable task for researchers and advocates, due to their volume and unstructured heterogeneity. This paper introduces the methodology of the Innocence Discovery Initiative—a collaboration between Innocence Project New Orleans (IPNO) and the Human Rights Data Analysis Group (HRDAG). By developing a comprehensive index for these documents, targeting specific files, and analyzing cross-referenced data, we aim to unearth patterns and systemic issues that underpin wrongful convictions.
 
 \section{Introduction}
-Exoneration documents, secured during legal proceedings that aim to right the wrongs of justice, are invaluable for understanding wrongful convictions. They cast a spotlight on law enforcement actions, revealing systemic challenges. Yet, finding and leveraging usable information within these collections remains a formidable task for researchers and advocates, due to their volume and unstructured heterogeneity.
 
-This post introduces the methodology of the Innocence Discovery Initiative—a collaboration between Innocence Project New Orleans (IPNO) and the Human Rights Data Analysis Group (HRDAG). Our approach utilizes data processing technologies, machine learning, and cross-referencing with both IPNO's internal intake database and the Louisiana Law Enforcement Accountability Database (LLEAD). By developing a comprehensive index for these documents, targeting specific files, and analyzing cross-referenced data, we aim to unearth patterns and systemic issues that underpin wrongful convictions.
-
-\section{Using Large Language Models for structured information extraction from the IPNO case files}
-\begin{itemize}
-    \item \href{https://ip-no.org/who-we-are/staff/#ai}{Ayyub Ibrahim}, Director of Research for the Louisiana Law Enforcement Accountability Database, Innocence Project of New Orleans
-    \item \href{https://hrdag.org/people/tarak-shah/}{Tarak Shah}, Data Scientist, Human Rights Data Analysis Group
-\end{itemize}
-
-Exoneration documents, documents acquired during the legal processes that seek to rectify miscarriages of justice, offer invaluable insights into wrongful conviction cases. Particularly, they illuminate the roles and actions of law enforcement personnel. Yet, the sheer volume and lack of structure in these documents pose challenges for researchers, lawyers, and advocates dedicated to transparency and justice.
-
-In 2022, the Innocence Project New Orleans (IPNO) launched the Louisiana \href{https://llead.co/}{Law Enforcement Accountability Database (LLEAD)}, a consolidation of data from over 500 law enforcement agencies in Louisiana. To date, LLEAD hosts details of over 40,000 allegations of misconduct spanning 194 agencies across 48 of Louisiana's 64 parishes. This initiative is the first state-wide database of its kind. LLEAD is already an essential tool for exoneration work, and including wrongful conviction information in the database would make it even more useful.
-
-For example, in Orleans Parish, Louisiana, 78\% of wrongful convictions have been linked to law enforcement's failure to share exculpatory evidence with the defense, a rate more than double the national average. Given this backdrop, we seek to make these collections searchable and useful for lawyers, advocates, and community members to better investigate patterns of police misconduct and corruption. In order to do so, we rely on a multi-stage process:
+In October 2022, IPNO launched \href{https://llead.co/}{Law Enforcement Accountability Database (LLEAD)}, a consolidation of data from over 500 law enforcement agencies in Louisiana. To date, LLEAD hosts details of over 40,000 allegations of misconduct spanning 194 agencies across 48 of Louisiana's 64 parishes. This initiative is the first state-wide database of its kind. LLEAD is already an essential tool for exoneration work, and including wrongful conviction information in the database would make it even more useful. For example, in Orleans Parish, Louisiana, 78\% of wrongful convictions have been linked to law enforcement's failure to share exculpatory evidence with the defense, a rate more than double the national average. Given this backdrop, we seek to make these collections searchable and useful for lawyers, advocates, and community members to better investigate patterns of police misconduct and corruption. In order to do so, we rely on a multi-stage process:
 
 \begin{enumerate}
     \item Metadata Compilation:
@@ -37,7 +45,8 @@ For example, in Orleans Parish, Louisiana, 78\% of wrongful convictions have bee
     \begin{itemize}
         \item police reports: include mentions of officers involved in the arrest that led to the wrongful conviction, or related arrests.
         \item transcripts: court transcripts, recorded by clerks of the court, where officers appear as witnesses and describe their role in the conviction (including making the arrest, transporting evidence, interrogating the accused).
-        \item testimonies: witness testimony, which will include testimony from officers involved in the conviction
+        \item testimonies: witness testimony, which will include testimony from officers involved in the conviction        
+        \item page classification: page classification involves building a classification model to categorize files (or page sequences within files) into these different types of documents. One approach is to fine-tune a pretrained convolutional neural network to label thumbnail images of document pages. Using thumbnails is advantageous because they are smaller files, resulting in faster processing and reduced computational resource consumption. This makes them an effective approach for retrieving specific types of documents from disorganized collections, as described in \href{https://arxiv.org/abs/1502.07058}{Evaluation of Deep Convolutional Nets for Document Image Classification and Retrieval}. In order to use this technique, we needed training data and a pretrained model. To quickly assemble a training data set for our page classifier, we started by noticing that in many cases the file name indicated the document type. These documents were scanned by many people at different times, so we could not rely on this heuristic for comprehensive categorization of documents, but there was more than enough there to jumpstart our training process. We collected our initial training data by probing filenames for specific search terms, and reviewing and confirming that we had inferred the correct document types from the filenames. Once we had training data, we used [FastAI](https://docs.fast.ai/) to fine-tune the `ResNet34` architecture, pretrained on [ImageNet](https://www.image-net.org/), to identify reports, transcripts, and testimonies based on page thumbnails. With the trained classifier, we were able to measure generalization performance on documents that couldn't be classified via filename, and we were also better able to target additional training data, for example by reviewing pages where the classifier had low confidence about its prediction. 
     \end{itemize}
     
     \item Information Extraction: Currently, we're engaged in extracting structured information from the documents we've identified, and that work is the focus of the current post. Our goal is to extract structured information related to each police officer or prosecutor mentioned in the documents, such as their names, ranks, and roles in the wrongful conviction.
@@ -55,11 +64,15 @@ Consider the text string from a court transcript reading, "Sergeant Ruiz was men
 
 To further highlight the limitations of regex in handling such tasks, we designed a simple baseline model. Instead of attempting to capture the full scope of officer information extraction, this model focuses solely on extracting officer names as a starting point. This choice was intentional; by narrowing down the task, we hoped to provide a clear example of the strengths and weaknesses of regex in the context of real-world data.
 
-\begin{lstlisting}[language=Python, caption=Code Snippet 1, breaklines=true]
-    pattern = re.compile(r"(detective|sergeant|lieutenant|captain|corporal|deputy|criminalist|technician|investigator"
-                         r"|det\.|sgt\.|lt\.|cpt\.|cpl\.|dty\.|tech\.|dr\.)\s+([A-Z][A-Za-z]*(\s[A-Z][A-Za-z]*)?)", re.IGNORECASE)
+\begin{lstlisting}[language=Python, caption=Code Snippet 1]
+    pattern = re.compile(
+        r"(detective|sergeant|lieutenant|captain|corporal|deputy|"
+        r"criminalist|technician|investigator|det\.|sgt\.|lt\.|cpt\.|"
+        r"cpl\.|dty\.|tech\.|dr\.)"
+        r"\s+([A-Z][A-Za-z]*(\s[A-Z][A-Za-z]*)?)", 
+        re.IGNORECASE
+    )
 \end{lstlisting}
-    
 
 \begin{itemize}
     \item After implementing our baseline model, we tested its performance on two different sets of data: police reports and court transcripts.
@@ -97,15 +110,17 @@ Here is the method we use to generate hypothetical embeddings. The resulting obj
         input_variables=["question"],
         template="""
         You're an AI assistant specializing in criminal justice research. 
+        
         Your main focus is on identifying the names and providing detailed context of mention for each law enforcement personnel. 
-        This includes police officers, detectives, deputies, lieutenants, sergeants, captains, technicians, coroners, investigators, patrolmen, and criminalists, 
-        as described in court transcripts.
-        Be aware that the titles "Detective" and "Officer" might be used interchangeably.
-        Be aware that the titles "Technician" and "Tech" might be used interchangeably.
+        
+        This includes police officers, detectives, deputies, lieutenants, sergeants, captains, technicians, coroners, investigators, patrolmen, and criminalists, as described in court transcripts and police reports.
+
         Question: {question}
         Roles and Responses:"""
     )
-    
+\end{lstlisting}
+
+\begin{lstlisting}[language=Python, caption=Code Snippet 3, breaklines=true]
     def generate_hypothetical_embeddings():
         llm = OpenAI()
         prompt = PROMPT_TEMPLATE_HYDE
@@ -117,13 +132,11 @@ Here is the method we use to generate hypothetical embeddings. The resulting obj
         return embeddings
 \end{lstlisting}
 
-
 The \texttt{process\_single\_document} function converts an input document into a vector database of chunks. This function employs Langchain's RecursiveCharacterTextSplitter to split documents into chunks of 500 tokens, while maintaining an overlap of 250 tokens to ensure contextual continuity.
 
 There are times when the model might inadvertently identify names without clear ties to law enforcement personnel. By cross-referencing the model's output with LLEAD, we believe we will be able to filter out many such false positives (it's worth noting that some law enforcement personnel mentioned in the documents will be absent from LLEAD, but our current focus is on officers we can track using LLEAD). On the other hand, we have no way of recovering officer mentions if they are not picked up by our extraction process. In light of this, when evaluating the model we are more interested in maximizing recall, ensuring we identify as many genuine law enforcement mentions as we can.  To quantify this focus on recall, we employed the \href{https://en.wikipedia.org/wiki/F-score#F%CE%B2\_score}{F-beta score} (with $\beta=2$), which weighs recall twice as heavily as precision. We tested the model using varying chunk sizes, including 2000, 1000, and 500, with corresponding overlaps of 1000, 500, and 250 respectively. Based on our evaluations, the optimal configuration is a chunk size of 500 with an overlap of 250. After segmentation, the text is transformed into a high-dimensional space using precomputed embeddings from our hypothetical document embedder. The \texttt{FAISS.from\_documents} function aids in this transformation, constructing an indexed document database designed for similarity searches.
 
-
-\begin{lstlisting}[language=Python, caption=Code Snippet 3, breaklines=true]
+\begin{lstlisting}[language=Python, caption=Code Snippet 4, breaklines=true]
     def process_single_document(file_path, embeddings):
         logger.info(f"Processing document: {file_path}")
         loader = JSONLoader(file_path)
@@ -143,7 +156,7 @@ The relevant chunks of text are then passed to the \texttt{LLMChain} class of th
 
 The \texttt{LLMChain} processes these inputs and generates a structured response to the initial query.
 
-\begin{lstlisting}[language={}, breaklines=true, caption=Your Caption Here]
+\begin{lstlisting}[language={}, breaklines=true, caption=Code Snippet 5]
     PROMPT_TEMPLATE_MODEL = PromptTemplate(
         input_variables=["roles", "question", "docs"],
         template="""
@@ -157,20 +170,11 @@ The \texttt{LLMChain} processes these inputs and generates a structured response
     
         The response will contain:
     
-        1 The name of an officer, detective, deputy, lieutenant, 
-          sergeant, captain, officer, coroner, investigator, criminalist, patrolman, or technician - 
-          if an individual's name is not associated with one of these titles they do not work in law enforcement.
-          Please prefix the name with "Officer Name: ". 
-          For example, "Officer Name: John Smith".
+        1 The name of an officer, detective, deputy, lieutenant, sergeant, captain, officer, coroner, investigator, criminalist, patrolman, or technician - if an individual's name is not associated with one of these titles they do not work in law enforcement. Please prefix the name with "Officer Name: ". For example, "Officer Name: John Smith".
     
-        2 If available, provide an in-depth description of the context of their mention. 
-          If the context induces ambiguity regarding the individual's employment in law enforcement, 
-          remove the individual.
-          Please prefix this information with "Officer Context: ". 
+        2 If available, provide an in-depth description of the context of their mention. If the context induces ambiguity regarding the individual's employment in law enforcement, remove the individual. Please prefix this information with "Officer Context: ". 
     
-        3 Review the context to discern the role of the officer.
-          Please prefix this information with "Officer Role: "
-          For example, the column "Officer Role: Lead Detective" will be filled with a value of 1 for officers who were the lead detective.
+        3 Review the context to discern the role of the officer. Please prefix this information with "Officer Role: ". For example, the column "Officer Role: Lead Detective" will be filled with a value of 1 for officers who were the lead detective.
     """,
     
     ROLE_TEMPLATE = """
@@ -179,13 +183,14 @@ The \texttt{LLMChain} processes these inputs and generates a structured response
     Lead Detective
     1. Coordinates with other detectives and law enforcement officers on the case.
     2. Liaises with the prosecutor's office, contributing to legal strategy and court proceedings.
-    3. May be involved in obtaining and executing search warrants.
-    4. Could be called to testify in court about the investigation.
+
+    Crime Lab Analyst
+    1. Analyses various types of evidence gathered during an investigation, including but not limited to, DNA, fingerprints, blood samples, drug substances, etc.
+    2. Prepares detailed reports outlining the findings of their analyses.
     """
 \end{lstlisting}
-    
 
-\begin{lstlisting}[language=Python, caption=Code Snippet 4, breaklines=true]
+\begin{lstlisting}[language=Python, caption=Code Snippet 6, breaklines=true]
     def get_response_from_query(db, query):
         # Set up the parameters
         prompt = PROMPT_TEMPLATE_MODEL
@@ -195,21 +200,21 @@ The \texttt{LLMChain} processes these inputs and generates a structured response
     
         # Perform the similarity search
         doc_list = db.similarity_search_with_score(query, k=k)
-    
+
+        # sort documents by relevance score 
         docs = sorted(doc_list, key=lambda x: x[1], reverse=True)
-    
+        
         third = len(docs) // 3
-    
         highest_third = docs[:third]
         middle_third = docs[third:2*third]
         lowest_third = docs[2*third:]
-    
         highest_third = sorted(highest_third, key=lambda x: x[1], reverse=True)
         middle_third = sorted(middle_third, key=lambda x: x[1], reverse=True)
         lowest_third = sorted(lowest_third, key=lambda x: x[1], reverse=True)
     
         docs = highest_third + lowest_third + middle_third
-    
+
+        # concatenate documents
         docs_page_content = " ".join([d[0].page_content for d in docs])
     
         # Create an instance of the OpenAI model
@@ -219,10 +224,10 @@ The \texttt{LLMChain} processes these inputs and generates a structured response
         chain = LLMChain(llm=llm, prompt=prompt)
     
         # Run the LLMChain and print the response
-        response = chain.run(roles=roles, question=query, docs=docs_page_content, temperature=temperature)
-        print(response)
-    
-        # Return the response and the documents
+        response = chain.run(roles=roles, 
+                             question=query, 
+                             docs=docs_page_content, 
+                             temperature=temperature)
         return response
 \end{lstlisting}
 
@@ -230,8 +235,11 @@ The \texttt{LLMChain} processes these inputs and generates a structured response
 
 For additional context, the following showcases the inputs and outputs of our approach:
 
-\noindent \textbf{Query}:  
-``Identify individuals, by name, with the specific titles of officers, sergeants, lieutenants, captains, detectives, homicide officers, and crime lab personnel in the transcript. Specifically, provide the context of their mention related to key events in the case, if available."
+\vspace{1em} 
+
+\noindent \textbf{Query}:``Identify individuals, by name, with the specific titles of officers, sergeants, lieutenants, captains, detectives, homicide officers, and crime lab personnel in the transcript. Specifically, provide the context of their mention related to key events in the case, if available."
+
+\vspace{1em} 
 
 \noindent \textbf{Relevant Document}:  
 (1 of 20 documents identified by the Faiss similarity search as relevant)
@@ -241,7 +249,12 @@ Martin Venezia, New Orleans police sergeant.\\
 ``A 16 .01 Sergeant Venezia, where are you assigned now?"\\
 ``A Second Police District. 13 . And in October, September of 1979 and in Q 19 September and October of 1980, where were you assigned? :1 Homicide division. A. And how long have you been on the police department right now? Thirteen and a half years. A Officer Venezia, when did you or did you ever take over the investigation of ... Cathy Ulfers' murder? A"
 \end{quote}
+
+\vspace{1em} 
+
 \textit{metadata}: \{'source': '../../data/convictions/transcripts/iterative(C) Det. Martin Venezia Testimony Trial One.docx'\}
+
+\vspace{1em}
 
 \noindent \textbf{Response from the Model}:
 
@@ -253,7 +266,7 @@ Martin Venezia, New Orleans police sergeant.\\
 
 \section{Evaluations, issues, improvements}
 
-In our relentless pursuit to optimize the model's capability to extract officer names from documents, we embarked on a comprehensive evaluation journey.
+In our effort to optimize the model's capability to extract officer names from documents, we evaluated it on various parameters. The following tests were run using GPT-4.
 
 \noindent \textbf{Preprocessing Parameters}:
 \begin{itemize}
@@ -263,13 +276,14 @@ In our relentless pursuit to optimize the model's capability to extract officer 
 
 \noindent \textbf{Model-specific Parameters}:
 \begin{itemize}
-    \item \textbf{Hypothetical Document Embeddings (HYDE)}: We keenly examined their influence on the model's overall performance.
-    \item \textbf{'k' Value}: Represents the number of text chunks fed into the model.
-    \item \textbf{Temperature Parameter}: Modulates the randomness factor within the model.
+    \item \textbf{Hypothetical Document Embeddings (HYDE)}: Investigated their effect on the model's overall performance.
+    \item \textbf{'k' Value}: Denotes the number of text chunks input to the model.
+    \item \textbf{Temperature Parameter}: Influences the randomness of the model.
 \end{itemize}
 
-Our primary metric for assessing our model's performance was the F-beta score. Unlike the traditional F1 score that gives equal weightage to both precision and recall, the F-beta score offers flexibility in weighting. We engineered our score to prioritize recall, echoing the significance of spotting relevant information comprehensively, even at the expense of occasionally marking some irrelevant content.
+For evaluating our model's performance, we utilized the F-beta score as our primary metric. Unlike the F1 score, which gives equal weight to precision (correctness) and recall (completeness), the F-beta score allows for differential weighting. We designed our score to weigh recall twice as much as precision, reflecting the importance of accurately spotting relevant information, even if it means occasionally flagging some irrelevant content.
 
+Based on our evaluations, our model performed best with:
 \begin{itemize}
     \item Chunk size of 500
     \item Chunk overlap of 250
@@ -277,21 +291,21 @@ Our primary metric for assessing our model's performance was the F-beta score. U
     \item 'k' value of 20
 \end{itemize}
 
-In terms of actual metrics, the F-beta score stood at 0.864909 for police reports and ascended to 0.813397 for transcripts.
+For police reports, the F-beta score reached 0.864909, while for transcripts, the F-beta score peaked at 0.813397.
 
-During our evaluations, larger chunk sizes like 1000 and 2000, though appearing beneficial, curtailed our F-beta scores. Overlaps greater than the optimal, such as 500 and 1000, also dampened our results, despite offering more context. The pronounced edge provided by the HYDE embeddings further bolstered their significance in our model.
+Although larger chunk sizes, such as 1000 and 2000, might offer advantages for certain applications, they resulted in lower F-beta scores during our tests. Similarly, greater overlaps like 500 and 1000 reduced our performance, even with the potential for more context. The consistent advantage of incorporating HYDE embeddings was evident, underscoring their value to our model.
 
-Another significant observation was about the temperature parameter. A temperature of 1 generally led to enhanced F-beta scores, especially when discerning officer names within police reports. As we transition to the subsequent phase, fine-tuning of this parameter becomes pivotal.
+Another key observation was regarding the temperature parameter, which influences the model's level of randomness. With a temperature set to 1, we generally saw higher F-beta scores, especially for identifying officer names in police reports. As we move to the next phase — extracting detailed context about the officers role within the document — the precise handling of this parameter will be crucial because a high temperature can potentially skew results or generate "hallucinated" content.
 
 \subsection{Model Behavior Analysis Over Iterative Runs}
 
-Post-evaluation of the model, our next pursuit was understanding its behavior over iterative runs. The inherent stochastic nature of generative text models means that multiple runs of the same document, using the same parameters, can produce varied outputs. This brings forth the challenge of determining an ideal number of iterations — a balance between comprehensive results and cost-efficiency.
+After our evaluation of the model based on various parameters, the next phase delved into understanding the model's behavior over iterative runs. Due to the stochastic nature of generative text models, a single document can yield diverse outputs when processed multiple times using the same parameters. This highlighted the challenge of identifying an optimal number of iterations, a balance that ensures comprehensive insights while being cost efficient. In the interest of cost efficiency, the following tests were run using GPT-3.5-Turbo-16K. The decline in performance can be attributed to the change in model. 
 
-To navigate this, we introduced two distinct query strategies:
+To address this, we employed two distinct query strategies:
 
 \subsubsection{Multiple Queries Approach}
 
-Under this approach, six meticulously crafted queries were used, targeting specific information facets:
+This strategy used six unique queries, each crafted to extract specific facets of the required information. The queries are as follows:
 
 \begin{enumerate}
     \item \textbf{Query 1:} Identify individuals, by name, with specific titles mentioned. Provide context related to key events in the case.
@@ -304,7 +318,7 @@ Under this approach, six meticulously crafted queries were used, targeting speci
 
 \subsubsection{Singular Query Approach}
 
-This method capitalized on a comprehensive query designed to encapsulate all sought-after information facets. Iterative runs of the same query on the document, with each yielding slightly different results, were compiled:
+This method employed a comprehensive query, designed to holistically capture all the desired information facets. We run the document through the same query repeatedly, which results in slightly different responses each time, and then collect the results together. The query is:
 
 \begin{quote}
 \textbf{Query:} Identify each individual and present a contextual description that includes their decisions, interactions, roles, outcomes, and any significant incidents.
@@ -390,7 +404,7 @@ The results from our current fine-tuning experiments with GPT models provide val
 
 \end{itemize}
 
-\section{Acknowledgements}
+\section*{Acknowledgements}
 
 \begin{itemize}
 \item Innocence Project New Orleans: Huy Dao
