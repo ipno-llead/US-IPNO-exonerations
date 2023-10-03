@@ -11,17 +11,25 @@
   columns=fullflexible 
 }
 
-\title{Using Large Language Models for structured information extraction from the court case files and police reports}
+\title{Using Large Language Models for structured information extraction from the IPNO case files}
+
+\author{
+    Ayyub Ibrahim\footnote{\href{https://ip-no.org/who-we-are/staff/}{Ayyub Ibrahim's Profile}} \\
+    Director of Research for LLEAD, IPNO
+    \and
+    Tarak Shah\footnote{\href{https://hrdag.org/people/tarak-shah/}{Tarak Shah's Profile}} \\
+    Data Scientist, HRDAG
+}
 
 \begin{document}
 \maketitle
 
 \section*{Abstract}
-Exoneration documents, secured during legal proceedings that aim to right the wrongs of justice, are invaluable for understanding wrongful convictions. They cast a spotlight on law enforcement actions, revealing systemic challenges. Yet, finding and leveraging usable information within these collections remains a formidable task for researchers and advocates, due to their volume and unstructured heterogeneity. This paper introduces a for developing a comprehensive index for these documents, targeting specific files, and analyzing cross-referenced data, we aim to unearth patterns and systemic issues that underpin wrongful convictions.
+Exoneration documents, secured during legal proceedings that aim to right the wrongs of justice, are invaluable for understanding wrongful convictions. They cast a spotlight on law enforcement actions, revealing systemic challenges. Yet, finding and leveraging usable information within these collections remains a formidable task for researchers and advocates, due to their volume and unstructured heterogeneity. This paper introduces the methodology of the Innocence Discovery Initiative—a collaboration between Innocence Project New Orleans (IPNO) and the Human Rights Data Analysis Group (HRDAG). By developing a comprehensive index for these documents, targeting specific files, and analyzing cross-referenced data, we aim to unearth patterns and systemic issues that underpin wrongful convictions.
 
 \section{Introduction}
 
-in Orleans Parish, Louisiana, - to take one example - 78\% of wrongful convictions have been linked to law enforcement's failure to share exculpatory evidence with the defense, a rate more than double the national average. Given this backdrop, we seek to make these collections of exoneration documents searchable and useful for lawyers, advocates, and community members to better investigate patterns of police misconduct and corruption. In order to do so, we rely on a multi-stage process:
+In October 2022, IPNO launched \href{https://llead.co/}{Law Enforcement Accountability Database (LLEAD)}, a consolidation of data from over 500 law enforcement agencies in Louisiana. To date, LLEAD hosts details of over 40,000 allegations of misconduct spanning 194 agencies across 48 of Louisiana's 64 parishes. This initiative is the first state-wide database of its kind. LLEAD is already an essential tool for exoneration work, and including wrongful conviction information in the database would make it even more useful. For example, in Orleans Parish, Louisiana, 78\% of wrongful convictions have been linked to law enforcement's failure to share exculpatory evidence with the defense, a rate more than double the national average. Given this backdrop, we seek to make these collections searchable and useful for lawyers, advocates, and community members to better investigate patterns of police misconduct and corruption. In order to do so, we rely on a multi-stage process:
 
 \begin{enumerate}
     \item Metadata Compilation:
@@ -38,16 +46,14 @@ in Orleans Parish, Louisiana, - to take one example - 78\% of wrongful convictio
         \item police reports: include mentions of officers involved in the arrest that led to the wrongful conviction, or related arrests.
         \item transcripts: court transcripts, recorded by clerks of the court, where officers appear as witnesses and describe their role in the conviction (including making the arrest, transporting evidence, interrogating the accused).
         \item testimonies: witness testimony, which will include testimony from officers involved in the conviction        
+        \item page classification: page classification involves building a classification model to categorize files (or page sequences within files) into these different types of documents. One approach is to fine-tune a pretrained convolutional neural network to label thumbnail images of document pages. Using thumbnails is advantageous because they are smaller files, resulting in faster processing and reduced computational resource consumption. This makes them an effective approach for retrieving specific types of documents from disorganized collections, as described in \href{https://arxiv.org/abs/1502.07058}{Evaluation of Deep Convolutional Nets for Document Image Classification and Retrieval}. In order to use this technique, we needed training data and a pretrained model. To quickly assemble a training data set for our page classifier, we started by noticing that in many cases the file name indicated the document type. These documents were scanned by many people at different times, so we could not rely on this heuristic for comprehensive categorization of documents, but there was more than enough there to jumpstart our training process. We collected our initial training data by probing filenames for specific search terms, and reviewing and confirming that we had inferred the correct document types from the filenames. Once we had training data, we used [FastAI](https://docs.fast.ai/) to fine-tune the `ResNet34` architecture, pretrained on [ImageNet](https://www.image-net.org/), to identify reports, transcripts, and testimonies based on page thumbnails. With the trained classifier, we were able to measure generalization performance on documents that couldn't be classified via filename, and we were also better able to target additional training data, for example by reviewing pages where the classifier had low confidence about its prediction. 
     \end{itemize}
-
-    Page classification involves building a classification model to categorize files (or page sequences within files) into these different types of documents. One approach is to fine-tune a pretrained convolutional neural network to label thumbnail images of document pages. Using thumbnails is advantageous because they are smaller files, resulting in faster processing and reduced computational resource consumption. This makes them an effective approach for retrieving specific types of documents from disorganized collections, as described in \href{https://arxiv.org/abs/1502.07058}{Evaluation of Deep Convolutional Nets for Document Image Classification and Retrieval}. In order to use this technique, we needed training data and a pretrained model. To quickly assemble a training data set for our page classifier, we started by noticing that in many cases the file name indicated the document type. These documents were scanned by many people at different times, so we could not rely on this heuristic for comprehensive categorization of documents, but there was more than enough there to jumpstart our training process. We collected our initial training data by probing filenames for specific search terms, and reviewing and confirming that we had inferred the correct document types from the filenames. Once we had training data, we used [FastAI](https://docs.fast.ai/) to fine-tune the `ResNet34` architecture, pretrained on [ImageNet](https://www.image-net.org/), to identify reports, transcripts, and testimonies based on page thumbnails. With the trained classifier, we were able to measure generalization performance on documents that couldn't be classified via filename, and we were also better able to target additional training data, for example by reviewing pages where the classifier had low confidence about its prediction. 
-
     
     \item Information Extraction: Currently, we're engaged in extracting structured information from the documents we've identified, and that work is the focus of the current post. Our goal is to extract structured information related to each police officer or prosecutor mentioned in the documents, such as their names, ranks, and roles in the wrongful conviction.
 
-    \item Deduplication: The previous step leaves us with many distinct mentions, but some individuals are mentioned many times, within the same case or across cases. Here we rely on database deduplication to create a unique index of officers and prosecutors involved in wrongful convictions, and a record and the role or roles they had in the wrongful conviction.
+    \item Deduplication: The previous step leaves us with many distinct mentions, but some individuals are mentioned many times, within the same case or across cases. Here we rely on HRDAG's \href{https://hrdag.org/tech-notes/adaptive-blocking-writeup-1.html}{extensive experience with database deduplication} to create a unique index of officers and prosecutors involved in wrongful convictions, and a record and the role or roles they had in the wrongful conviction.
 
-    \item Cross-referencing: In the final stage, we'll cross-reference the officer names and roles we've extracted from external police misconduct databases to identify other cases these officers have been involved in.
+    \item Cross-referencing: In the final stage, we'll cross-reference the officer names and roles we've extracted with the Louisiana Law Enforcement Accountability Database \href{https://llead.co/}{(LLEAD)} to identify other cases these officers have been involved in.
 \end{enumerate}
 
 A primary task in our process is extracting officer information from documents – specifically, the officer's name and the role the officer played in the wrongful conviction. The extraction of such information is crucial for understanding the dynamics and potential lapses that led to the conviction. Given the importance of this task, it's essential to approach it with a methodology that ensures accuracy and comprehensiveness.
@@ -68,32 +74,14 @@ To further highlight the limitations of regex in handling such tasks, we designe
     )
 \end{lstlisting}
 
-\begin{lstlisting}[language=Python, caption=Code Snippet 1]
-    pattern = re.compile(
-        r"(detective|sergeant|lieutenant|captain|corporal|deputy|"
-        r"criminalist|technician|investigator|det\.|sgt\.|lt\.|cpt\.|"
-        r"cpl\.|dty\.|tech\.|dr\.)"
-        r"\s+([A-Z][A-Za-z]*(\s[A-Z][A-Za-z]*)?)", 
-        re.IGNORECASE
-    )
-\end{lstlisting}
-
-After implementing our baseline model, we tested its performance on two different sets of data: police reports and court transcripts.
-
-\vspace{.5cm}
-
-\textbf{Police Reports Results:}
-
 \begin{itemize}
+    \item After implementing our baseline model, we tested its performance on two different sets of data: police reports and court transcripts.
+    \item \textbf{Police Reports Results:}
     \item \textbf{Precision}: 0.845: This indicates that among the instances our model predicted as officer names, 84.5\% of them were indeed officer names. A high precision suggests that the model is quite reliable in its positive predictions.
     \item \textbf{Recall}: 0.518: This metric reveals that our model was able to identify only 51.8\% of the actual officer names present in the police reports. A lower recall signifies that while our predictions are accurate, we are missing out on a significant number of true officer names.
     \item \textbf{F1 Score}: 0.614: The F1 score harmonizes precision and recall, giving us a balanced view of the model's performance. At 0.614, it suggests that there is room for improvement, especially in capturing more true positives without sacrificing precision.
     \item \textbf{F\_beta}: 0.549: This score is another harmonic mean of precision and recall but gives more weight to recall. A score of 0.549 further emphasizes the model's challenges in identifying all true positives.
-\end{itemize}
-
-\textbf{Court Transcripts Results:}
-
-\begin{itemize}
+    \item \textbf{Court Transcripts Results:}
     \item \textbf{Precision}: 0.8656: Similar to the police reports, our model displayed high precision on court transcripts, indicating its reliability in positive predictions.
     \item \textbf{Recall}: 0.4281: However, the recall is notably lower on the court transcripts, meaning our model missed out on more than half of the actual officer names present in these documents.
     \item \textbf{F1 Score}: 0.5461: The F1 score for court transcripts is lower than that for police reports, suggesting a more pronounced trade-off between precision and recall in this dataset.
@@ -146,7 +134,7 @@ Here is the method we use to generate hypothetical embeddings. The resulting obj
 
 The \texttt{process\_single\_document} function converts an input document into a vector database of chunks. This function employs Langchain's RecursiveCharacterTextSplitter to split documents into chunks of 500 tokens, while maintaining an overlap of 250 tokens to ensure contextual continuity.
 
-There are times when the model might inadvertently identify names without clear ties to law enforcement personnel. By cross-referencing the model's output with external police misconduct databases, we believe we will be able to filter out many such false positives. On the other hand, we have no way of recovering officer mentions if they are not picked up by our extraction process. In light of this, when evaluating the model we are more interested in maximizing recall, ensuring we identify as many genuine law enforcement mentions as we can.  To quantify this focus on recall, we employed the \href{https://en.wikipedia.org/wiki/F-score#F%CE%B2\_score}{F-beta score} (with $\beta=2$), which weighs recall twice as heavily as precision. We tested the model using varying chunk sizes, including 2000, 1000, and 500, with corresponding overlaps of 1000, 500, and 250 respectively. Based on our evaluations, the optimal configuration is a chunk size of 500 with an overlap of 250. After segmentation, the text is transformed into a high-dimensional space using precomputed embeddings from our hypothetical document embedder. The \texttt{FAISS.from\_documents} function aids in this transformation, constructing an indexed document database designed for similarity searches.
+There are times when the model might inadvertently identify names without clear ties to law enforcement personnel. By cross-referencing the model's output with LLEAD, we believe we will be able to filter out many such false positives (it's worth noting that some law enforcement personnel mentioned in the documents will be absent from LLEAD, but our current focus is on officers we can track using LLEAD). On the other hand, we have no way of recovering officer mentions if they are not picked up by our extraction process. In light of this, when evaluating the model we are more interested in maximizing recall, ensuring we identify as many genuine law enforcement mentions as we can.  To quantify this focus on recall, we employed the \href{https://en.wikipedia.org/wiki/F-score#F%CE%B2\_score}{F-beta score} (with $\beta=2$), which weighs recall twice as heavily as precision. We tested the model using varying chunk sizes, including 2000, 1000, and 500, with corresponding overlaps of 1000, 500, and 250 respectively. Based on our evaluations, the optimal configuration is a chunk size of 500 with an overlap of 250. After segmentation, the text is transformed into a high-dimensional space using precomputed embeddings from our hypothetical document embedder. The \texttt{FAISS.from\_documents} function aids in this transformation, constructing an indexed document database designed for similarity searches.
 
 \begin{lstlisting}[language=Python, caption=Code Snippet 4, breaklines=true]
     def process_single_document(file_path, embeddings):
@@ -414,6 +402,15 @@ The results from our current fine-tuning experiments with GPT models provide val
     \captionof{figure}{Average Cumulative F1 Beta Score for 1 Query vs. 6 Queries (Court Transcripts) - Model: GPT-4}
 \end{center}
 
+\end{itemize}
+
+\section*{Acknowledgements}
+
+\begin{itemize}
+\item Innocence Project New Orleans: Huy Dao
+\item Public Data Works: Rajiv Sinclair, Khoi Pham
+\item Human Rights Data Analysis Group: Dr. Megan Price
+\item and OpenAI, for their generous donation of research credits, without which we could not have run all of these experiments.
 \end{itemize}
 
 \end{document}
