@@ -15154,10 +15154,10 @@ class="
 <div class="jp-InputArea jp-Cell-inputArea"><div class="jp-InputPrompt jp-InputArea-prompt">
 </div><div class="jp-RenderedHTMLCommon jp-RenderedMarkdown jp-MarkdownOutput " data-mime-type="text/markdown">
 <h1 id="Table-of-Contents">Table of Contents<a class="anchor-link" href="#Table-of-Contents">&#182;</a></h1><ul>
-<li><a href="#using-large-language-models-for-structured-information-extraction-from-the-ipno-case-files">Using Large Language Models for structured information extraction from the IPNO case files</a><ul>
+<li><a href="#using-large-language-models-for-structured-information-extraction-from-the-ipno-case-files">Using large language models for structured information extraction from the Innocence Project New Orleans' wrongful conviction case files</a><ul>
 <li><a href="#introduction">Introduction</a></li>
-<li><a href="#structured-data-extraction-with-regex">Structured Data Extraction with Regex</a></li>
-<li><a href="#structured-data-extraction-with-an-llm">Structured Data Extraction with an LLM</a></li>
+<li><a href="#structured-data-extraction-with-regex">Structured data extraction with regular expressions</a></li>
+<li><a href="#structured-data-extraction-with-an-llm">Structured data extraction with a large language model</a></li>
 </ul>
 </li>
 <li><a href="#evaluations-issues-improvements">Evaluations, issues, improvements</a></li>
@@ -15183,7 +15183,7 @@ class="
 <div class="jp-InputArea jp-Cell-inputArea"><div class="jp-InputPrompt jp-InputArea-prompt">
 </div><div class="jp-RenderedHTMLCommon jp-RenderedMarkdown jp-MarkdownOutput " data-mime-type="text/markdown">
 <p><a id="using-large-language-models-for-structured-information-extraction-from-the-ipno-case-files"></a></p>
-<h1 id="Using-Large-Language-Models-for-structured-information-extraction-from-the-IPNO-case-files">Using Large Language Models for structured information extraction from the IPNO case files<a class="anchor-link" href="#Using-Large-Language-Models-for-structured-information-extraction-from-the-IPNO-case-files">&#182;</a></h1><ul>
+<h1 id="Using-large-language-models-for-structured-information-extraction-from-the-Innocence-Project-New-Orleans'-wrongful-conviction-case-files">Using large language models for structured information extraction from the Innocence Project New Orleans' wrongful conviction case files<a class="anchor-link" href="#Using-large-language-models-for-structured-information-extraction-from-the-Innocence-Project-New-Orleans'-wrongful-conviction-case-files">&#182;</a></h1><ul>
 <li><a href="https://ip-no.org/who-we-are/staff/#ai">Ayyub Ibrahim</a>, Director of Research for LLEAD, Innocence Project of New Orleans</li>
 <li><a href="https://hrdag.org/people/tarak-shah/">Tarak Shah</a>, Data Scientist, Human Rights Data Analysis Group</li>
 </ul>
@@ -15317,7 +15317,7 @@ class="
 </ul>
 <p>Similar to the police reports, our model displayed high precision on court transcripts, indicating its reliability in positive predictions.</p>
 <ul>
-<li>Recall: 0.4281</li>
+<li><strong>Recall</strong>: 0.4281</li>
 </ul>
 <p>However, the recall is notably lower on the court transcripts, meaning our model missed out on more than half of the actual officer names present in these documents.</p>
 <ul>
@@ -15512,6 +15512,8 @@ class="
 
     <span class="c1"># Perform the similarity search</span>
     <span class="n">doc_list</span> <span class="o">=</span> <span class="n">db</span><span class="o">.</span><span class="n">similarity_search_with_score</span><span class="p">(</span><span class="n">query</span><span class="p">,</span> <span class="n">k</span><span class="o">=</span><span class="n">k</span><span class="p">)</span>
+
+    <span class="c1"># Sort documents by relevance scores. Place documents with the highest relevance </span>
 
     <span class="n">docs</span> <span class="o">=</span> <span class="nb">sorted</span><span class="p">(</span><span class="n">doc_list</span><span class="p">,</span> <span class="n">key</span><span class="o">=</span><span class="k">lambda</span> <span class="n">x</span><span class="p">:</span> <span class="n">x</span><span class="p">[</span><span class="mi">1</span><span class="p">],</span> <span class="n">reverse</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
 
