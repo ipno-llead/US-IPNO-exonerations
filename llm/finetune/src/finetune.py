@@ -34,7 +34,7 @@ def main(input_file, api_key_file):
 
     try:
         logging.info("Creating fine-tuning job...")
-        create_job = openai.FineTuningJob.create(training_file=file_id, model="gpt-3.5-turbo-1106")
+        create_job = openai.FineTuningJob.create(training_file=file_id, model="gpt-3.5-turbo-0613")
     except Exception as e:
         logging.error(f"Error in creating fine-tuning job: {e}")
         return
