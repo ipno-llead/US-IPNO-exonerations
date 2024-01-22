@@ -1,6 +1,5 @@
-# +
 import os
-from langchain.document_loaders import Docx2txtLoader, JSONLoader
+from langchain.document_loaders import JSONLoader
 from langchain.text_splitter import RecursiveCharacterTextSplitter
 from langchain.vectorstores.faiss import FAISS
 from langchain.chat_models import ChatOpenAI
