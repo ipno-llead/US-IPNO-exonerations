@@ -1,15 +1,16 @@
 import os
+import pandas as pd
+import logging
+import re
+import argparse
+
 from langchain.document_loaders import JSONLoader
 from langchain.text_splitter import RecursiveCharacterTextSplitter
 from langchain.vectorstores.faiss import FAISS
 from langchain.chat_models import ChatOpenAI
 from langchain import PromptTemplate
 from langchain.chains import LLMChain
-import pandas as pd
-import logging
-import re
 from langchain.chat_models import AzureChatOpenAI
-import argparse
 from langchain.llms import OpenAI
 from langchain.embeddings import OpenAIEmbeddings
 from langchain.chains import LLMChain, HypotheticalDocumentEmbedder
@@ -72,9 +73,7 @@ def generate_hypothetical_embeddings():
 
     llm_chain = LLMChain(llm=llm, prompt=prompt)
 
-    base_embeddings = OpenAIEmbeddings(
-        openai_api_key=""
-    )
+    base_embeddings = OpenAIEmbeddings(openai_api_key="")
 
     embeddings = HypotheticalDocumentEmbedder(
         llm_chain=llm_chain, base_embeddings=base_embeddings
