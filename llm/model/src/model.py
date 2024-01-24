@@ -230,6 +230,7 @@ MULTIPLE_QUERIES = [
 ]
 
 
+# +
 def process_files_in_directory(
     input_path, output_path, embeddings, multiple_queries_mode=False
 ):
@@ -250,107 +251,118 @@ def process_files_in_directory(
                 continue
 
             file_path = os.path.join(input_path, file_name)
-            output_data = []
-
-            db = preprocess_document(file_path, embeddings)
-            for idx, query in enumerate(queries, start=1):
-                retries = 0
-                while retries < max_retries:
-                    try:
-                        officer_data_string, page_numbers = get_response_from_query(
-                            db, query, TEMPERATURE, k
-                        )
-                        break
-                    except ValueError as e:
-                        if "Azure has not provided the response" in str(e):
-                            retries += 1
-                            logger.warn(
-                                f"Retry {retries} for query {query} due to Azure content filter error."
+            
+            try:
+                output_data = []
+                
+                try:
+                    db = preprocess_document(file_path, embeddings)
+                except Exception as e:
+                    logger.error(f"Error preprocessing document {file_name}: {e}")
+                    continue  # Skip to the next file
+    
+                for idx, query in enumerate(queries, start=1):
+                    retries = 0
+                    while retries < max_retries:
+                        try:
+                            officer_data_string, page_numbers = get_response_from_query(
+                                db, query, TEMPERATURE, k
                             )
-                        else:
-                            raise
+                            break
+                        except ValueError as e:
+                            if "Azure has not provided the response" in str(e):
+                                retries += 1
+                                logger.warn(
+                                    f"Retry {retries} for query {query} due to Azure content filter error."
+                                )
+                            else:
+                                raise
 
-                if retries == max_retries:
-                    logger.error(f"Max retries reached for query {query}. Skipping...")
-                    continue
+                    if retries == max_retries:
+                        logger.error(f"Max retries reached for query {query}. Skipping...")
+                        continue
 
-                officer_data = extract_officer_data(officer_data_string)
+                    officer_data = extract_officer_data(officer_data_string)
 
-                for item in officer_data:
-                    item["page_number"] = page_numbers
-                    item["fn"] = file_name
-                    item["Query"] = query
-                    item["Prompt Template for Hyde"] = PROMPT_TEMPLATE_HYDE
-                    item["Prompt Template for Model"] = PROMPT_TEMPLATE_MODEL
-                    item["Chunk Size"] = CHUNK_SIZE
-                    item["Chunk Overlap"] = CHUNK_OVERLAP
-                    item["Temperature"] = TEMPERATURE
-                    item["k"] = k
-                    item["hyde"] = "1"
-                    item["iteration"] = idx
-                    item["num_of_queries"] = "6" if multiple_queries_mode else "1"
-                    item["model"] = "gpt-3.5-turbo-1603-finetuned-300-labels"
-                output_data.extend(officer_data)
+                    for item in officer_data:
+                        item["page_number"] = page_numbers
+                        item["fn"] = file_name
+                        item["Query"] = query
+                        item["Prompt Template for Hyde"] = PROMPT_TEMPLATE_HYDE
+                        item["Prompt Template for Model"] = PROMPT_TEMPLATE_MODEL
+                        item["Chunk Size"] = CHUNK_SIZE
+                        item["Chunk Overlap"] = CHUNK_OVERLAP
+                        item["Temperature"] = TEMPERATURE
+                        item["k"] = k
+                        item["hyde"] = "1"
+                        item["iteration"] = idx
+                        item["num_of_queries"] = "6" if multiple_queries_mode else "1"
+                        item["model"] = "gpt-3.5-turbo-1603-finetuned-300-labels"
+                    output_data.extend(officer_data)
 
-            output_df = pd.DataFrame(output_data)
-            output_df.to_csv(csv_output_path, index=False)
-
-
+                output_df = pd.DataFrame(output_data)
+                output_df.to_csv(csv_output_path, index=False)
+            
+            except Exception as e:
+                logger.error(f"An error occurred while processing file {file_name}: {e}")
+                continue 
+            
 def concatenate_csvs(input_directory, index_file_name):
     all_dataframes = []
-    for file_name in os.listdir(input_directory):
-        if file_name.endswith(".csv"):
-            file_path = os.path.join(input_directory, file_name)
-            df = pd.read_csv(file_path)
-            all_dataframes.append(df)
+    logger.info(f"Attempting to concatenate CSVs in directory: {input_directory}")
+
+    for root, dirs, files in os.walk(input_directory):
+        for file_name in files:
+            if file_name.endswith(".csv"):
+                file_path = os.path.join(root, file_name)
+                logger.info(f"Adding CSV file to concatenation: {file_path}")
+                df = pd.read_csv(file_path)
+                all_dataframes.append(df)
+
+    if not all_dataframes:
+        logger.error("No CSV files found for concatenation.")
+        return
 
     combined_df = pd.concat(all_dataframes, ignore_index=True)
     output_file = os.path.join(input_directory, index_file_name)
     combined_df.to_csv(output_file, index=False)
     logger.info(f"Combined CSV created at: {output_file}")
+    
 
-
-def process_query(
-    input_path_transcripts,
-    input_path_reports,
-    output_path_transcripts,
-    output_path_reports,
-):
+def process_query(input_json_path, output_csv_path):
     embeddings = generate_hypothetical_embeddings()
+    
+    os.makedirs(os.path.dirname(output_csv_path), exist_ok=True)
 
-    logger.info("Processing transcripts...")
+    logger.info(f"Processing file: {input_json_path}")
     process_files_in_directory(
-        input_path_transcripts, output_path_transcripts, embeddings, False
+        os.path.dirname(input_json_path),
+        os.path.dirname(output_csv_path),
+        embeddings
     )
-    concatenate_csvs(output_path_transcripts, "transcripts-index.csv")
+    logger.info(f"Output CSV generated at: {output_csv_path}")
+    
+    return output_csv_path  
 
-    logger.info("Processing reports...")
-    process_files_in_directory(
-        input_path_reports, output_path_reports, embeddings, True
-    )
-    concatenate_csvs(output_path_reports, "reports-index.csv")
+def main(csv_path, output_dir):
+    df = pd.read_csv(csv_path)
+    csv_output_paths = []
 
+    for index, row in df.iterrows():
+        input_json_path = os.path.join('../../ocr/', row['json_filepath'])
+        output_csv_path = row['json_filepath'].replace('.json', '.csv')
+        output_csv_full_path = os.path.join(output_dir, output_csv_path)
+        
+        csv_output_path = process_query(input_json_path, output_csv_full_path)
+        csv_output_paths.append(csv_output_path)
+
+    concatenate_csvs(output_dir, "combined_output_reports.csv")
+    logger.info("All CSV files have been concatenated into a single file.")
 
 if __name__ == "__main__":
-    parser = argparse.ArgumentParser(description="Process transcripts and reports.")
-    parser.add_argument(
-        "--input_path_transcripts", required=True, help="Input path for transcripts"
-    )
-    parser.add_argument(
-        "--input_path_reports", required=True, help="Input path for reports"
-    )
-    parser.add_argument(
-        "--output_path_transcripts", required=True, help="Output path for transcripts"
-    )
-    parser.add_argument(
-        "--output_path_reports", required=True, help="Output path for reports"
-    )
-
+    parser = argparse.ArgumentParser(description="Process transcripts and reports based on a CSV list.")
+    parser.add_argument("--csv_path", required=True, help="CSV file path with the list of files to process")
+    parser.add_argument("--output_dir", required=True, help="Output directory for processed CSV files")
+    
     args = parser.parse_args()
-
-    process_query(
-        args.input_path_transcripts,
-        args.input_path_reports,
-        args.output_path_transcripts,
-        args.output_path_reports,
-    )
+    main(args.csv_path, args.output_dir)

@@ -1,17 +1,14 @@
-INPUT_PATH_TRANSCRIPTS := input/transcripts
-INPUT_PATH_REPORTS := input/reports
-OUTPUT_PATH_TRANSCRIPTS := output/transcripts
-OUTPUT_PATH_REPORTS := output/reports
-
+CSV_PATH := ../../ocr/output/hueristic-reports-json.csv
+OUTPUT_DIR := output
 PYTHON_SCRIPT := src/model.py
 
 all: process_all
 
 process_all:
-	python3 $(PYTHON_SCRIPT) --input_path_transcripts $(INPUT_PATH_TRANSCRIPTS) --input_path_reports $(INPUT_PATH_REPORTS) --output_path_transcripts $(OUTPUT_PATH_TRANSCRIPTS) --output_path_reports $(OUTPUT_PATH_REPORTS)
+	python3 $(PYTHON_SCRIPT) --csv_path $(CSV_PATH) --output_dir $(OUTPUT_DIR)
 
 clean:
-	rm -rf $(OUTPUT_PATH_TRANSCRIPTS)/*
-	rm -rf $(OUTPUT_PATH_REPORTS)/*
+	find $(OUTPUT_DIR) -name '*.json' -exec rm {} +
+	find $(OUTPUT_DIR) -name '*.csv' -exec rm {} +
 
 .PHONY: all process_all clean
