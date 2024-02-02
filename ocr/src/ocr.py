@@ -147,7 +147,7 @@ if __name__ == '__main__':
         transcripts = transcripts[transcripts['doc_type'] == 'transcript']
 
         if len(transcripts) > 50:
-            index = transcripts.sample(n=25, random_state=np.random.RandomState())
+            index = transcripts.sample(n=50, random_state=np.random.RandomState())
         else:
             index = transcripts
 

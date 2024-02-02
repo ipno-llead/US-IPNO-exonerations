@@ -199,7 +199,7 @@ def get_response_from_query(db, query, temperature, k):
         if page_number is not None:
             page_numbers.append(page_number)
 
-    ft_model = "ft:gpt-3.5-turbo-0613:personal::8jvQ6VA6"
+    ft_model = "ft:gpt-3.5-turbo-0613:hrdag::8lO3rOqe"
 
     llm = ChatOpenAI(
         model_name=ft_model,
@@ -232,7 +232,7 @@ MULTIPLE_QUERIES = [
 
 # +
 def process_files_in_directory(
-    input_path, output_path, embeddings, multiple_queries_mode=False
+    input_path, output_path, embeddings,uid, multiple_queries_mode=False
 ):
     queries = (
         MULTIPLE_QUERIES
@@ -298,6 +298,7 @@ def process_files_in_directory(
                         item["iteration"] = idx
                         item["num_of_queries"] = "6" if multiple_queries_mode else "1"
                         item["model"] = "gpt-3.5-turbo-1603-finetuned-300-labels"
+                        item["uid"] = uid
                     output_data.extend(officer_data)
 
                 output_df = pd.DataFrame(output_data)
@@ -329,7 +330,7 @@ def concatenate_csvs(input_directory, index_file_name):
     logger.info(f"Combined CSV created at: {output_file}")
     
 
-def process_query(input_json_path, output_csv_path):
+def process_query(input_json_path, output_csv_path, uid):
     embeddings = generate_hypothetical_embeddings()
     
     os.makedirs(os.path.dirname(output_csv_path), exist_ok=True)
@@ -338,7 +339,8 @@ def process_query(input_json_path, output_csv_path):
     process_files_in_directory(
         os.path.dirname(input_json_path),
         os.path.dirname(output_csv_path),
-        embeddings
+        embeddings,
+        uid
     )
     logger.info(f"Output CSV generated at: {output_csv_path}")
     
@@ -352,12 +354,14 @@ def main(csv_path, output_dir):
         input_json_path = os.path.join('../../ocr/', row['json_filepath'])
         output_csv_path = row['json_filepath'].replace('.json', '.csv')
         output_csv_full_path = os.path.join(output_dir, output_csv_path)
-        
-        csv_output_path = process_query(input_json_path, output_csv_full_path)
+        file_uid = row['uid']  
+
+        csv_output_path = process_query(input_json_path, output_csv_full_path, file_uid)
         csv_output_paths.append(csv_output_path)
 
-    concatenate_csvs(output_dir, "combined_output_reports.csv")
+    concatenate_csvs(output_dir, "reports.csv")
     logger.info("All CSV files have been concatenated into a single file.")
+
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Process transcripts and reports based on a CSV list.")
