@@ -4,16 +4,14 @@ import logging
 import re
 import argparse
 
-from langchain.document_loaders import JSONLoader
+from langchain_community.document_loaders import JSONLoader
 from langchain.text_splitter import RecursiveCharacterTextSplitter
 from langchain.vectorstores.faiss import FAISS
-from langchain_community.chat_models import ChatOpenAI
-from langchain import PromptTemplate
+from langchain_openai import OpenAI, OpenAIEmbeddings, ChatOpenAI
+from langchain_core.output_parsers import StrOutputParser
+from langchain_core.prompts import ChatPromptTemplate
+from langchain.chains import HypotheticalDocumentEmbedder
 from langchain.chains import LLMChain
-from langchain.chat_models import AzureChatOpenAI
-from langchain_openai import OpenAI
-from langchain_community.embeddings import OpenAIEmbeddings
-from langchain.chains import LLMChain, HypotheticalDocumentEmbedder
 
 iteration_times = 6
 max_retries = 10
@@ -68,12 +66,13 @@ def extract_officer_data(text):
 
 
 def generate_hypothetical_embeddings():
-    llm = OpenAI(api_key="")
-    prompt = PROMPT_TEMPLATE_HYDE
+    llm = OpenAI(api_key="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")
+    
+    prompt_template_hyde = ChatPromptTemplate.from_template(PROMPT_TEMPLATE_HYDE)
 
-    llm_chain = LLMChain(llm=llm, prompt=prompt)
+    llm_chain = LLMChain(llm=llm, prompt=prompt_template_hyde)
 
-    base_embeddings = OpenAIEmbeddings(model="text-embedding-3-large", api_key="")
+    base_embeddings = OpenAIEmbeddings(model="text-embedding-3-large", api_key="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")
 
     embeddings = HypotheticalDocumentEmbedder(
         llm_chain=llm_chain, base_embeddings=base_embeddings
@@ -98,9 +97,7 @@ def sort_retrived_documents(doc_list):
     return docs
 
 
-PROMPT_TEMPLATE_HYDE = PromptTemplate(
-    input_variables=["question"],
-    template="""
+PROMPT_TEMPLATE_HYDE = """
     You're an AI assistant specializing in criminal justice research. 
     Your main focus is on identifying the names and providing detailed context of mention for each law enforcement personnel. 
     This includes police officers, detectives, deupties, lieutenants, sergeants, captains, technicians, coroners, investigators, patrolman, and criminalists, 
@@ -110,12 +107,9 @@ PROMPT_TEMPLATE_HYDE = PromptTemplate(
 
     Question: {question}
 
-    Roles and Responses:""",
-)
+    Roles and Responses:"""
 
-PROMPT_TEMPLATE_MODEL = PromptTemplate(
-    input_variables=["question", "docs"],
-    template="""
+PROMPT_TEMPLATE_MODEL = """
     As an AI assistant, my role is to meticulously analyze criminal justice documents and extract information about law enforcement personnel.
   
     Query: {question}
@@ -151,8 +145,7 @@ PROMPT_TEMPLATE_MODEL = PromptTemplate(
     Officer Name: 
     Officer Context:
     Officer Role:   
-""",
-)
+"""
 
 
 def metadata_func(record: dict, metadata: dict) -> dict:
@@ -203,18 +196,15 @@ def get_response_from_query(db, query, temperature, k):
 
     llm = ChatOpenAI(
         model_name=ft_model,
-        api_key="",
+        api_key="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",
     )
 
-    prompt = PROMPT_TEMPLATE_MODEL
-
-    chain = LLMChain(llm=llm, prompt=prompt)
-    response = chain.run(
-        question=query, docs=docs_page_content, temperature=temperature
-    )
+   
+    prompt_response = ChatPromptTemplate.from_template(PROMPT_TEMPLATE_MODEL)
+    response_chain = prompt_response | llm | StrOutputParser()
+    response = response_chain.invoke({"question": query, "docs": docs_page_content})
 
     return response, page_numbers
-
 
 SINGLE_QUERY = [
     "Identify each individual in the transcript, by name, who are directly referred to as officers, sergeants, lieutenants, captains, detectives, homicide officers, and crime lab personnel. Provide the context of their mention, focusing on key events, significant decisions or actions they made, interactions with other individuals, roles or responsibilities they held, noteworthy outcomes or results they achieved, and any significant incidents or episodes they were involved in, if available."
@@ -288,8 +278,6 @@ def process_files_in_directory(
                         item["page_number"] = page_numbers
                         item["fn"] = file_name
                         item["Query"] = query
-                        item["Prompt Template for Hyde"] = PROMPT_TEMPLATE_HYDE
-                        item["Prompt Template for Model"] = PROMPT_TEMPLATE_MODEL
                         item["Chunk Size"] = CHUNK_SIZE
                         item["Chunk Overlap"] = CHUNK_OVERLAP
                         item["Temperature"] = TEMPERATURE
