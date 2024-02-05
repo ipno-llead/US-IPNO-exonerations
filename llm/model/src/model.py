@@ -68,12 +68,12 @@ def extract_officer_data(text):
 
 
 def generate_hypothetical_embeddings():
-    llm = OpenAI(openai_api_key="")
+    llm = OpenAI(api_key="")
     prompt = PROMPT_TEMPLATE_HYDE
 
     llm_chain = LLMChain(llm=llm, prompt=prompt)
 
-    base_embeddings = OpenAIEmbeddings(model="text-embedding-3-large")
+    base_embeddings = OpenAIEmbeddings(model="text-embedding-3-large", api_key="")
 
     embeddings = HypotheticalDocumentEmbedder(
         llm_chain=llm_chain, base_embeddings=base_embeddings

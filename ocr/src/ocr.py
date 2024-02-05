@@ -146,8 +146,8 @@ if __name__ == '__main__':
         transcripts = index[index['filetype'] == 'pdf']
         transcripts = transcripts[transcripts['doc_type'] == 'transcript']
 
-        if len(transcripts) > 50:
-            index = transcripts.sample(n=50, random_state=np.random.RandomState())
+        if len(transcripts) > 100:
+            index = transcripts.sample(n=75, random_state=np.random.RandomState())
         else:
             index = transcripts
 
