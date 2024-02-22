@@ -144,10 +144,10 @@ if __name__ == '__main__':
         logging.info(f"Total number of files in index: {len(index)}")
 
         transcripts = index[index['filetype'] == 'pdf']
-        transcripts = transcripts[transcripts['doc_type'] == 'transcript']
+        transcripts = transcripts[transcripts['doc_type'] == 'report']
 
-        if len(transcripts) > 100:
-            index = transcripts.sample(n=75, random_state=np.random.RandomState())
+        if len(transcripts) > 75:
+            index = transcripts.head(75)
         else:
             index = transcripts
 

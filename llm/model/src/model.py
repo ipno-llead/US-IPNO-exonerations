@@ -347,7 +347,7 @@ def main(csv_path, output_dir):
         csv_output_path = process_query(input_json_path, output_csv_full_path, file_uid)
         csv_output_paths.append(csv_output_path)
 
-    concatenate_csvs(output_dir, "reports.csv")
+    concatenate_csvs(output_dir, "reports-new.csv")
     logger.info("All CSV files have been concatenated into a single file.")
 
 
