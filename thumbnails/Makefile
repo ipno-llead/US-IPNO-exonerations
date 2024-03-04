@@ -4,8 +4,8 @@ input := ../index-files/output/index.csv
 
 all: output/index.csv
 
-output/index.csv: src/accordian.py $(input)
+output/index.csv: src/generate_thumbnails.py $(input)
 	-mkdir output
-	python $< \
+	python3 $< \
 		--input=$(input) \
 		--output=$@

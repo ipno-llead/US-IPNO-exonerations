@@ -77,7 +77,7 @@ def filter_for_pdfs(df):
     df_splice = df[10000:]
     print(df_splice.shape)
     print(df_splice.head(10))
-    return df_splice
+    return df
 
 
 if __name__ == "__main__":
