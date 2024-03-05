@@ -82,8 +82,8 @@ def filter_for_pdfs(df):
 
 if __name__ == "__main__":
     csv_path = args.input
-    df = pd.read_csv(csv_path, sep="|")
-    df = df.pipe(change_dir).pipe(filter_for_pdfs)
+    df = pd.read_csv(csv_path)
+    df = df.pipe(filter_for_pdfs)
 
     logger.info("Creating png's...")
 

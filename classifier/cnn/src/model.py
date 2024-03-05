@@ -24,22 +24,34 @@ args = parser.parse_args()
 
 
 def change_dir(df):
-    df.loc[:, "img_filepath"] = df.png.str.replace(r"^(.+)", r"../../thumbnail_accordian/\1", regex=True)
+    df.loc[:, "img_filepath"] = df.png.str.replace(r"^(.+)", r"../../thumbnails/\1", regex=True)
     df.loc[:, "img_filepath"] = df.img_filepath.fillna("").str.replace(r"\.\/nan", "", regex=True)
     df = df[~(df.img_filepath == "")]
     return df
 
 
 def assign_label_col(df):
+    print("Original DataFrame:")
     print(df)
-    df.loc[:, "label"] = 0
-    df.loc[:, "doc_type"] = "unknown"
-    df.loc[:, "label"] = df.label.astype(int)
-    return df
+    
+    # Drop rows where 'filepath' contains 'testimony' or 'report', and explicitly create a copy
+    filter_condition = ~(df['filepath'].str.contains('transcript|testimony', case=False))
+    df_filtered = df[filter_condition].copy()
+    
+    # Assign initial values
+    df_filtered.loc[:, "label"] = 0
+    df_filtered.loc[:, "doc_type"] = "unknown"
+    df_filtered.loc[:, "label"] = df_filtered.label.astype(int)
+    
+    print("Filtered DataFrame:")
+    print(df_filtered)
+    
+    return df_filtered
 
 
-def generate_reports(df):
-    df = df[(df.doc_type == "report")]
+
+def generate_labeled_data(df):
+    df = df[(df.doc_type == "transcript")]
     df.loc[:, "label"] = 1
     df.loc[:, "label"] = df.label.astype(int)
     return df
@@ -50,7 +62,7 @@ def concat(dfa, dfb):
     logger.info(f"Number of labeled reports: {len(dfa)}")
 
     dfb = dfb[~(dfb.filehash.isin(report_uids))]
-    dfb = dfb.sample(n=1500)  # Sample a smaller number of non-labeled samples
+    dfb = dfb.sample(n=30000)  # Sample a smaller number of non-labeled samples
     logger.info(f"Number of non-labeled samples: {len(dfb)}")
 
     df = pd.concat([dfa, dfb], axis=0)
@@ -115,7 +127,7 @@ def evaluate_model(learn):
 
 
 def train_model(learn):
-    learn.fine_tune(20)
+    learn.fine_tune(5)
     return learn
 
 
@@ -123,7 +135,7 @@ if __name__ == "__main__":
     # Load and preprocess labeled data
     df_lab = pd.read_csv(args.labeled)
     df_lab = change_dir(df_lab)
-    reports = generate_reports(df_lab)
+    reports = generate_labeled_data(df_lab)
 
     # Load and preprocess non-labeled data
     df_nonlab = pd.read_csv(args.nonlabeled)

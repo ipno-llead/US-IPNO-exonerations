@@ -1,10 +1,10 @@
-input := ../index-files/output/index.csv
+input := ../classifier/hueristic-filter/output/hueristic-df.csv
 
 .PHONY: all clean
 
-all: output/index.csv
+all: output/hueristic-index.csv
 
-output/index.csv: src/generate_thumbnails.py $(input)
+output/hueristic-index.csv: src/generate_thumbnails.py $(input)
 	-mkdir output
 	python3 $< \
 		--input=$(input) \

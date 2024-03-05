@@ -1,5 +1,5 @@
 model := ../cnn/output/report_model
-index := ../../thumbnail_accordian/output/index.csv
+index := ../thumbnails/output/index.csv
 
 .PHONY: all clean
 
