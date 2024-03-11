@@ -1,13 +1,13 @@
-model := ../cnn/output/report_model
+model := ../classifier/output/transcript_model
 index := ../thumbnails/output/index.csv
 
 .PHONY: all clean
 
-all: output/index_reports.csv
+all: output/index_transcripts.csv
 
-output/index_reports.csv: src/model.py $(input)
+output/index_transcripts.csv: src/model.py $(input)
 	mkdir -p output
-	python $< \
+	python3 $< \
 		--model $(model) \
 		--index $(index) \
 		--output $@

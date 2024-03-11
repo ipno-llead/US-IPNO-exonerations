@@ -1,5 +1,5 @@
-labeled := ../../thumbnails/output/hueristic-index.csv
-nonlabeled := ../../thumbnails/output/index.csv
+labeled := ../thumbnails/output/hueristic-index.csv
+nonlabeled := ../thumbnails/output/index.csv
 
 .PHONY: all clean
 

@@ -3,6 +3,7 @@ import torch
 from fastai.vision.all import *
 import argparse
 import logging
+import concurrent.futures
 
 logging.basicConfig(format='%(asctime)s - %(levelname)s - %(message)s', level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -14,22 +15,30 @@ parser.add_argument("--output")
 args = parser.parse_args()
 
 def change_dir(df):
-    df.loc[:, "img_filepath"] = df.png.str.replace(r"^(.+)", r"../../thumbnail_accordian/\1", regex=True)
+    df.loc[:, "img_filepath"] = df.png.str.replace(r"^(.+)", r"../thumbnails/\1", regex=True)
     df.loc[:, "img_filepath"] = df.img_filepath.fillna("").str.replace(r"\.\/nan", "", regex=True)
     df = df[~(df.img_filepath == "")]
     return df
 
-def apply_model(df, model_path):
+def apply_model(df, model_path, max_workers=50):
     # Load the trained model
     learn = load_learner(model_path, cpu=False)
 
-    # Predict the class for each image in the dataframe
-    for idx, row in df.iterrows():
+    def process_row(row):
+        img_filepath = row['img_filepath']
         try:
-            df.loc[idx, 'score'] = learn.predict(row['img_filepath'])[2][1].item()
+            score = learn.predict(img_filepath)[2][1].item()
         except Exception as e:
-            df.loc[idx, 'score'] = 'NA'
-            logger.warning(f"Error processing image {row['img_filepath']}: {e}")
+            logger.warning(f"Error processing image {img_filepath}: {e}")
+            score = 'NA'
+        return score
+
+    with concurrent.futures.ThreadPoolExecutor(max_workers=max_workers) as executor:
+        futures = [executor.submit(process_row, row) for _, row in df.iterrows()]
+
+        scores = [future.result() for future in concurrent.futures.as_completed(futures)]
+
+    df['score'] = scores
 
     return df
 
