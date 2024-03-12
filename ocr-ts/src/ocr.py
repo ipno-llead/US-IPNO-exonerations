@@ -1,3 +1,4 @@
+# +
 import re
 import logging
 import os
@@ -17,7 +18,6 @@ import numpy as np
 import pdf2image
 from PyPDF2 import PdfReader 
 
-# +
 parser = argparse.ArgumentParser()
 parser.add_argument("--index")
 parser.add_argument("--jsondir", default="output/json")
@@ -28,7 +28,6 @@ args = parser.parse_args()
 logging.basicConfig(format='%(asctime)s - %(levelname)s - %(message)s', level=logging.INFO)
 
 
-# +
 def pdf_length(filepath):
     try:
         with open(filepath, 'rb') as f:
@@ -141,7 +140,6 @@ if __name__ == '__main__':
         DPI = args.dpi
 
         index = pd.read_csv(input_path)
-        index = index.pipe(filter_out_non_matches)
         index = index.pipe(change_fp)
         logging.info(f"Total number of files in index: {len(index)}")
 
