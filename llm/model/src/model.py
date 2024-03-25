@@ -12,6 +12,11 @@ from langchain_core.output_parsers import StrOutputParser
 from langchain_core.prompts import ChatPromptTemplate
 from langchain.chains import HypotheticalDocumentEmbedder
 from langchain.chains import LLMChain
+import concurrent.futures
+import traceback
+import queue
+import multiprocessing
+
 
 iteration_times = 6
 max_retries = 10
@@ -30,11 +35,13 @@ k = 20
 
 
 def clean_name(officer_name):
-    return re.sub(
-        r"(Detective|[Dd]et\.?:?\,?|[Ll]t\.?:?\,?|[Ss]gt\.?|Officer|Deputy|Captain|[CcPpLl]|Sergeant|Lieutenant|Techn?i?c?i?a?n?|Investigator|^-|\d{1}\)|\w{1}\.)\.?\s+",
-        "",
-        officer_name,
-    )
+    # Enhanced regex pattern to match common officer titles and variations
+    pattern = r"(Detective|Det\.?|Lieutenant|Lt\.?|Sergeant|Sgt\.?|Captain|Capt\.?|Officer|Deputy|Cmdr\.?|Commander|Chief|Inspector|Investigator|Agent|Technician|Tech\.?|Corp\.?|Corporal|Specialist|Spcl\.?|Associate|Asst\.?|Assistant|Prosecutor|Marshal|Major|Maj\.?|Admiral|Adm\.?|General|Gen\.?|Colonel|Col\.?|Private|Pvt\.?|Brigadier|Brig\.?|Commodore|Cdr\.?|Ensign|Ens\.?|Lieutenant Commander|Lt Cmdr|Lt\. Cdr\.?|Master Sergeant|Msgt\.?|First Sergeant|1st Sgt\.?|Warrant Officer|WO|Chief Warrant Officer|CWO|Petty Officer|PO|Seaman|SN|Airman|Amn)\.?\s+"
+    match = re.search(pattern, officer_name, re.IGNORECASE)
+    title = match.group(0).strip() if match else ''  # Extract the title if found
+    cleaned_name = re.sub(pattern, "", officer_name, flags=re.IGNORECASE)  # Remove the title from the name
+
+    return cleaned_name, title
 
 
 def extract_officer_data(text):
@@ -45,34 +52,37 @@ def extract_officer_data(text):
     for section in officer_sections:
         if not section.strip():
             continue
+
         officer_dict = {}
-        name_match = re.search(
-            r"Officer Name:\s*(.*?)\s*Officer Context:", section, re.DOTALL
-        )
-        context_match = re.search(
-            r"Officer Context:\s*(.*?)\s*Officer Role:", section, re.DOTALL
-        )
+        name_match = re.search(r"Officer Name:\s*(.*?)\s*Officer Context:", section, re.DOTALL)
+        context_match = re.search(r"Officer Context:\s*(.*?)\s*Officer Role:", section, re.DOTALL)
         role_match = re.search(r"Officer Role:\s*(.*)", section, re.DOTALL)
+
         if name_match and name_match.group(1):
-            officer_dict["Officer Name"] = clean_name(name_match.group(1).strip())
+            cleaned_name, title = clean_name(name_match.group(1).strip())
+            officer_dict["Officer Name"] = cleaned_name
+            officer_dict["Officer Title"] = title
+
         if context_match and context_match.group(1):
             officer_dict["Officer Context"] = context_match.group(1).strip()
+
         if role_match and role_match.group(1):
             officer_dict["Officer Role"] = role_match.group(1).strip()
 
         if officer_dict:
             officer_data.append(officer_dict)
+
     return officer_data
 
 
 def generate_hypothetical_embeddings():
-    llm = OpenAI(api_key="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")
+    llm = OpenAI(api_key="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")
     
     prompt_template_hyde = ChatPromptTemplate.from_template(PROMPT_TEMPLATE_HYDE)
 
     llm_chain = LLMChain(llm=llm, prompt=prompt_template_hyde)
 
-    base_embeddings = OpenAIEmbeddings(model="text-embedding-3-large", api_key="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")
+    base_embeddings = OpenAIEmbeddings(api_key="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")
 
     embeddings = HypotheticalDocumentEmbedder(
         llm_chain=llm_chain, base_embeddings=base_embeddings
@@ -195,14 +205,15 @@ def get_response_from_query(db, query, temperature, k):
     ft_model = "ft:gpt-3.5-turbo-0613:hrdag::8lO3rOqe"
 
     llm = ChatOpenAI(
-        model_name=ft_model,
-        api_key="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",
+        model_name="gpt-3.5-turbo-0125",
+        api_key="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",
     )
 
    
     prompt_response = ChatPromptTemplate.from_template(PROMPT_TEMPLATE_MODEL)
     response_chain = prompt_response | llm | StrOutputParser()
     response = response_chain.invoke({"question": query, "docs": docs_page_content})
+    print(response)
 
     return response, page_numbers
 
@@ -221,37 +232,28 @@ MULTIPLE_QUERIES = [
 
 
 # +
-def process_files_in_directory(
-    input_path, output_path, embeddings,uid, multiple_queries_mode=False
-):
-    queries = (
-        MULTIPLE_QUERIES
-        if multiple_queries_mode
-        else [SINGLE_QUERY[0]] * iteration_times
-    )
-    queries_label = "_multiple_queries" if multiple_queries_mode else "_single_query"
+def process_files_in_directory(input_path, output_path, embeddings, uid):
+    query = SINGLE_QUERY[0]
+    queries_label = "_single_query"
+    iteration_times = 6
 
     for file_name in os.listdir(input_path):
         if file_name.endswith(".json"):
-            csv_output_path = os.path.join(
-                output_path, f"{file_name}{queries_label}.csv"
-            )
+            csv_output_path = os.path.join(output_path, f"{file_name}{queries_label}.csv")
             if os.path.exists(csv_output_path):
                 logger.info(f"CSV output for {file_name} already exists. Skipping...")
                 continue
 
             file_path = os.path.join(input_path, file_name)
-            
             try:
                 output_data = []
-                
                 try:
                     db = preprocess_document(file_path, embeddings)
                 except Exception as e:
                     logger.error(f"Error preprocessing document {file_name}: {e}")
                     continue  # Skip to the next file
-    
-                for idx, query in enumerate(queries, start=1):
+
+                for idx in range(1, iteration_times + 1):
                     retries = 0
                     while retries < max_retries:
                         try:
@@ -267,13 +269,11 @@ def process_files_in_directory(
                                 )
                             else:
                                 raise
-
                     if retries == max_retries:
                         logger.error(f"Max retries reached for query {query}. Skipping...")
                         continue
 
                     officer_data = extract_officer_data(officer_data_string)
-
                     for item in officer_data:
                         item["page_number"] = page_numbers
                         item["fn"] = file_name
@@ -284,17 +284,17 @@ def process_files_in_directory(
                         item["k"] = k
                         item["hyde"] = "1"
                         item["iteration"] = idx
-                        item["num_of_queries"] = "6" if multiple_queries_mode else "1"
-                        item["model"] = "gpt-3.5-turbo-1603-finetuned-300-labels"
+                        item["num_of_queries"] = "1"
+                        item["model"] = "gpt-3.5-turbo-0125"
                         item["uid"] = uid
+
                     output_data.extend(officer_data)
 
                 output_df = pd.DataFrame(output_data)
                 output_df.to_csv(csv_output_path, index=False)
-            
             except Exception as e:
                 logger.error(f"An error occurred while processing file {file_name}: {e}")
-                continue 
+                continue
             
 def concatenate_csvs(input_directory, index_file_name):
     all_dataframes = []
@@ -305,8 +305,12 @@ def concatenate_csvs(input_directory, index_file_name):
             if file_name.endswith(".csv"):
                 file_path = os.path.join(root, file_name)
                 logger.info(f"Adding CSV file to concatenation: {file_path}")
-                df = pd.read_csv(file_path)
-                all_dataframes.append(df)
+                
+                try:
+                    df = pd.read_csv(file_path)
+                    all_dataframes.append(df)
+                except pd.errors.EmptyDataError:
+                    logger.warning(f"Skipping empty file: {file_path}")
 
     if not all_dataframes:
         logger.error("No CSV files found for concatenation.")
@@ -316,45 +320,92 @@ def concatenate_csvs(input_directory, index_file_name):
     output_file = os.path.join(input_directory, index_file_name)
     combined_df.to_csv(output_file, index=False)
     logger.info(f"Combined CSV created at: {output_file}")
-    
 
-def process_query(input_json_path, output_csv_path, uid):
+
+
+def process_query(input_json_path, output_csv_path, uid, max_retries=3, retry_delay=5):
     embeddings = generate_hypothetical_embeddings()
     
     os.makedirs(os.path.dirname(output_csv_path), exist_ok=True)
 
     logger.info(f"Processing file: {input_json_path}")
-    process_files_in_directory(
-        os.path.dirname(input_json_path),
-        os.path.dirname(output_csv_path),
-        embeddings,
-        uid
-    )
-    logger.info(f"Output CSV generated at: {output_csv_path}")
     
-    return output_csv_path  
+    retries = 0
+    while retries < max_retries:
+        try:
+            process_files_in_directory(
+                os.path.dirname(input_json_path),
+                os.path.dirname(output_csv_path),
+                embeddings,
+                uid
+            )
+            logger.info(f"Output CSV generated at: {output_csv_path}")
+            return output_csv_path
+        except Exception as e:
+            logger.error(f"Error processing file: {input_json_path}. Retrying in {retry_delay} seconds...")
+            logger.error(str(e))
+            retries += 1
+            time.sleep(retry_delay)
+    
+    logger.error(f"Max retries reached for file: {input_json_path}. Skipping...")
+    return None
+    
 
-def main(csv_path, output_dir):
-    df = pd.read_csv(csv_path)
-    csv_output_paths = []
-
-    for index, row in df.iterrows():
-        input_json_path = os.path.join('../../ocr/', row['json_filepath'])
-        output_csv_path = row['json_filepath'].replace('.json', '.csv')
-        output_csv_full_path = os.path.join(output_dir, output_csv_path)
-        file_uid = row['uid']  
-
+def process_file(input_json_path, output_csv_full_path, file_uid):
+    try:
         csv_output_path = process_query(input_json_path, output_csv_full_path, file_uid)
-        csv_output_paths.append(csv_output_path)
+        return csv_output_path
+    except Exception as e:
+        error_message = f"Error processing file: {input_json_path}\n{str(e)}\n{traceback.format_exc()}\n"
+        with open("errors.txt", "a") as error_file:
+            error_file.write(error_message)
+        return None
+import os
+import pandas as pd
+import logging
+import re
+import argparse
+import multiprocessing
+import traceback
+import time
 
-    concatenate_csvs(output_dir, "reports-new.csv")
+# ... (rest of the code remains the same)
+
+def worker(input_queue, output_dir):
+    while True:
+        try:
+            index, row = input_queue.get(block=False)
+            input_json_path = os.path.join('../../ocr/', row['json_filepath'])
+            output_csv_path = row['json_filepath'].replace('.json', '.csv')
+            output_csv_full_path = os.path.join(output_dir, output_csv_path)
+            file_uid = row['uid']
+            process_file(input_json_path, output_csv_full_path, file_uid)
+        except multiprocessing.queues.Empty:
+            break
+
+def main(csv_path, output_dir, num_processes=4):
+    df = pd.read_csv(csv_path)
+    row_queue = multiprocessing.Queue()
+    for index, row in df.iterrows():
+        row_queue.put((index, row))
+
+    processes = []
+    for _ in range(num_processes):
+        process = multiprocessing.Process(target=worker, args=(row_queue, output_dir))
+        process.start()
+        processes.append(process)
+
+    for process in processes:
+        process.join()
+
+    concatenate_csvs(output_dir, "reports.csv")
     logger.info("All CSV files have been concatenated into a single file.")
-
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Process transcripts and reports based on a CSV list.")
     parser.add_argument("--csv_path", required=True, help="CSV file path with the list of files to process")
     parser.add_argument("--output_dir", required=True, help="Output directory for processed CSV files")
-    
+    parser.add_argument("--num_processes", type=int, default=4, help="Number of parallel processes to use")
     args = parser.parse_args()
-    main(args.csv_path, args.output_dir)
+
+    main(args.csv_path, args.output_dir, args.num_processes)

@@ -1,4 +1,4 @@
-CSV_PATH := ../../ocr/output/hueristic-reports.csv
+CSV_PATH := ../../ocr/output/reports.csv
 OUTPUT_DIR := output
 PYTHON_SCRIPT := src/model.py
 
